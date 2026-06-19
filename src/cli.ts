@@ -14,15 +14,19 @@ import {
   profileRemoveCommand,
 } from './commands/profile.js';
 import { regionCommand } from './commands/region.js';
+import { updateCommand } from './commands/update.js';
 import { useCommand } from './commands/use.js';
 import { whoamiCommand } from './commands/whoami.js';
+import { checkForUpdates } from './core/update-checker.js';
 import { AwswizError } from './ui/errors.js';
 import { t } from './ui/i18n.js';
 import { log, setVerbose } from './ui/output.js';
 
 const pkg = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-) as { version: string };
+) as { name: string; version: string };
+
+checkForUpdates(pkg);
 
 const program = new Command();
 
@@ -94,6 +98,18 @@ program
   .action((profileArg, regionArg) => regionCommand({ profile: profileArg, region: regionArg }));
 
 program.command('doctor').description(t('Check your AWS setup (files, clock skew, profiles)')).action(doctorCommand);
+
+program
+  .command('update')
+  .description(t('Update awswiz to the latest version'))
+  .option('--npm', t('use npm as package manager'))
+  .option('--yarn', t('use yarn as package manager'))
+  .option('--pnpm', t('use pnpm as package manager'))
+  .option('--bun', t('use bun as package manager'))
+  .action(async (opts) => {
+    const pm = opts.npm ? 'npm' : opts.yarn ? 'yarn' : opts.pnpm ? 'pnpm' : opts.bun ? 'bun' : undefined;
+    await updateCommand({ packageManager: pm });
+  });
 
 // No subcommand: launch the interactive menu in a terminal, or show help otherwise.
 program.action(async () => {

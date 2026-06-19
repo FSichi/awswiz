@@ -9,6 +9,7 @@ import { loginCommand } from './login.js';
 import { mfaCommand } from './mfa.js';
 import { profileMenuCommand } from './profile.js';
 import { regionCommand } from './region.js';
+import { updateCommand } from './update.js';
 import { useCommand } from './use.js';
 import { whoamiCommand } from './whoami.js';
 
@@ -16,7 +17,7 @@ const { version } = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
 ) as { version: string };
 
-type MenuAction = 'whoami' | 'mfa' | 'assume' | 'login' | 'use' | 'profiles' | 'region' | 'doctor' | 'exit';
+type MenuAction = 'whoami' | 'mfa' | 'assume' | 'login' | 'use' | 'profiles' | 'region' | 'doctor' | 'update' | 'exit';
 
 /** Interactive launcher shown when `awswiz` is run with no command (and a TTY). */
 export async function menuCommand(): Promise<void> {
@@ -33,9 +34,10 @@ export async function menuCommand(): Promise<void> {
       { name: `${pc.bold('profiles')}  ${pc.dim('— add / edit / remove / list')}`, value: 'profiles' },
       { name: `${pc.bold('region')}    ${pc.dim('— set a profile region')}`, value: 'region' },
       { name: `${pc.bold('doctor')}    ${pc.dim('— check your AWS setup')}`, value: 'doctor' },
+      { name: `${pc.bold('update')}    ${pc.dim('— update to latest version')}`, value: 'update' },
       { name: pc.dim(t('exit')), value: 'exit' },
     ],
-    pageSize: 10,
+    pageSize: 11,
   });
 
   log.blank();
@@ -57,6 +59,8 @@ export async function menuCommand(): Promise<void> {
       return regionCommand();
     case 'doctor':
       return doctorCommand();
+    case 'update':
+      return updateCommand();
     case 'exit':
       outro(t('Bye!'));
       return;

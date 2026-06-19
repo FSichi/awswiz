@@ -12,6 +12,21 @@ export const MESSAGES_ES: Record<string, string> = {
   'exit': 'salir',
   'Bye!': '¡Chau!',
 
+  // update
+  'Update awswiz to the latest version': 'Actualizar awswiz a la última versión',
+  'use npm as package manager': 'usar npm como gestor de paquetes',
+  'use yarn as package manager': 'usar yarn como gestor de paquetes',
+  'use pnpm as package manager': 'usar pnpm como gestor de paquetes',
+  'use bun as package manager': 'usar bun como gestor de paquetes',
+  'Detected package manager: {pm}': 'Gestor de paquetes detectado: {pm}',
+  'Checking for updates…': 'Buscando actualizaciones…',
+  'Updating @fsichi/awswiz via {pm}…': 'Actualizando @fsichi/awswiz con {pm}…',
+  '@fsichi/awswiz updated successfully! 🎉': '¡@fsichi/awswiz actualizado con éxito! 🎉',
+  'Run "awswiz --version" to verify.': 'Corré "awswiz --version" para verificar.',
+  'Update failed.': 'La actualización falló.',
+  'Try running the command manually: {cmd}': 'Probá correr el comando a mano: {cmd}',
+  '— update to latest version': '— actualizar a la última versión',
+
   // whoami
   'Checking your AWS identity…': 'Verificando tu identidad de AWS…',
   'Account': 'Cuenta',
