@@ -65,9 +65,182 @@ export const MESSAGES_ES: Record<string, string> = {
   'in': 'en',
   'MFA session ready': 'Sesión MFA lista',
 
+  'Role': 'Rol',
+
   // profiles
   'No AWS profiles found.': 'No se encontraron perfiles de AWS.',
-  'Create one with "awswiz profile add" (coming soon), or run "aws configure".':
-    'Creá uno con "awswiz profile add" (pronto), o corré "aws configure".',
+  'Create one with "awswiz profile add", or run "aws configure".':
+    'Creá uno con "awswiz profile add", o corré "aws configure".',
   '{n} profile(s) in ~/.aws:': '{n} perfil(es) en ~/.aws:',
+  'Name cannot be empty.': 'El nombre no puede estar vacío.',
+  'Use letters, numbers, dots, dashes and underscores.':
+    'Usá letras, números, puntos, guiones y guiones bajos.',
+  'Profile name:': 'Nombre del perfil:',
+  'Profile "{profile}" already exists. Overwrite its settings?':
+    'El perfil "{profile}" ya existe. ¿Sobrescribir su configuración?',
+  'How does this profile authenticate?': '¿Cómo se autentica este perfil?',
+  'AWS access key ID:': 'AWS access key ID:',
+  'That does not look like an access key ID.': 'Eso no parece un access key ID.',
+  'AWS secret access key:': 'AWS secret access key:',
+  'That does not look like a secret access key.': 'Eso no parece un secret access key.',
+  'Default region:': 'Región por defecto:',
+  'SSO start URL:': 'URL de inicio de SSO:',
+  'Enter the full https start URL.': 'Ingresá la URL https completa de inicio.',
+  'SSO region:': 'Región de SSO:',
+  'AWS account ID:': 'ID de cuenta de AWS:',
+  'Account IDs are 12 digits.': 'Los IDs de cuenta son de 12 dígitos.',
+  'SSO role name (permission set):': 'Nombre del rol SSO (permission set):',
+  'Profile "{profile}" saved.': 'Perfil "{profile}" guardado.',
+  'No profiles to edit.': 'No hay perfiles para editar.',
+  'Which profile do you want to edit?': '¿Qué perfil querés editar?',
+  'What do you want to change?': '¿Qué querés cambiar?',
+  'Access keys': 'Access keys',
+  'MFA device ARN': 'ARN del dispositivo MFA',
+  'New region:': 'Nueva región:',
+  'New access key ID:': 'Nuevo access key ID:',
+  'New secret access key:': 'Nuevo secret access key:',
+  'MFA device ARN:': 'ARN del dispositivo MFA:',
+  'Profile "{profile}" updated.': 'Perfil "{profile}" actualizado.',
+  'No profiles to remove.': 'No hay perfiles para borrar.',
+  'Which profile do you want to remove?': '¿Qué perfil querés borrar?',
+  'Remove "{profile}" from ~/.aws? This cannot be undone.':
+    '¿Borrar "{profile}" de ~/.aws? Esto no se puede deshacer.',
+  'Profile "{profile}" removed.': 'Perfil "{profile}" borrado.',
+  'Profile "{profile}" was not found.': 'No se encontró el perfil "{profile}".',
+  'Profiles — what do you want to do?': 'Perfiles — ¿qué querés hacer?',
+  'List profiles': 'Listar perfiles',
+  'Add a profile': 'Agregar un perfil',
+  'Edit a profile': 'Editar un perfil',
+  'Remove a profile': 'Borrar un perfil',
+
+  // assume
+  'Which profile should assume the role (the source)?':
+    '¿Qué perfil debería asumir el rol (el origen)?',
+  'No role ARN given.': 'No se indicó un ARN de rol.',
+  'Pass --role arn:aws:iam::…:role/Name.': 'Pasá --role arn:aws:iam::…:role/Nombre.',
+  'Role ARN to assume:': 'ARN del rol a asumir:',
+  'Should look like arn:aws:iam::<account>:role/<name>':
+    'Debería verse como arn:aws:iam::<cuenta>:role/<nombre>',
+  'This source requires MFA.': 'Este origen requiere MFA.',
+  'Pass --code <6 digits>.': 'Pasá --code <6 dígitos>.',
+  'MFA code (this role needs MFA):': 'Código MFA (este rol necesita MFA):',
+  'Assuming the role…': 'Asumiendo el rol…',
+  'Save the temporary credentials as which profile?':
+    '¿Con qué nombre de perfil guardo las credenciales temporales?',
+  'Role assumed': 'Rol asumido',
+
+  // login (SSO)
+  'Profile "{profile}" has no sso_start_url.': 'El perfil "{profile}" no tiene sso_start_url.',
+  'Add it with "awswiz profile add" (SSO), or pass --start-url.':
+    'Agregalo con "awswiz profile add" (SSO), o pasá --start-url.',
+  'Approve this sign-in in your browser:': 'Aprobá este inicio de sesión en tu navegador:',
+  'Verification code': 'Código de verificación',
+  'Waiting for you to approve…': 'Esperando que apruebes…',
+  'Signed in. Token valid until {time}.': 'Sesión iniciada. Token válido hasta {time}.',
+  'SSO login failed': 'El inicio de sesión SSO falló',
+  'SSO login timed out — the code expired before it was approved.':
+    'El inicio de sesión SSO expiró — el código venció antes de aprobarse.',
+
+  // use
+  'Which profile do you want to use?': '¿Qué perfil querés usar?',
+  'Copied "{profile}" into the default profile — "aws" uses it everywhere now.':
+    'Copié "{profile}" al perfil default — ahora "aws" lo usa en todos lados.',
+  "A tool can't change your shell's environment for you, so run this:":
+    'Una herramienta no puede cambiar el entorno de tu shell, así que corré esto:',
+  '(PowerShell — for cmd.exe use: set AWS_PROFILE={profile})':
+    '(PowerShell — para cmd.exe usá: set AWS_PROFILE={profile})',
+  '(cmd.exe — for PowerShell use: $env:AWS_PROFILE="{profile}")':
+    '(cmd.exe — para PowerShell usá: $env:AWS_PROFILE="{profile}")',
+  '(fish shell)': '(shell fish)',
+  '(bash / zsh)': '(bash / zsh)',
+  'Or make it the default (no env var needed): awswiz use {profile} --default':
+    'O hacelo el default (sin variable de entorno): awswiz use {profile} --default',
+
+  // region
+  'Which profile?': '¿Qué perfil?',
+  'Region for {profile}:': 'Región para {profile}:',
+  'Looks off — regions are like us-east-1, eu-west-2.':
+    'Se ve raro — las regiones son tipo us-east-1, eu-west-2.',
+  '{profile} region set to {region}.': 'La región de {profile} quedó en {region}.',
+
+  // doctor
+  '~/.aws/config exists': '~/.aws/config existe',
+  '~/.aws/credentials exists': '~/.aws/credentials existe',
+  '{n} profile(s) configured': '{n} perfil(es) configurado(s)',
+  'Checking your clock against AWS…': 'Comparando tu reloj con AWS…',
+  'Could not reach AWS to check the clock (offline?).':
+    'No se pudo contactar a AWS para chequear el reloj (¿sin conexión?).',
+  'Clock is in sync with AWS (±{n}s)': 'El reloj está en sync con AWS (±{n}s)',
+  'Your clock is off by {n}s — this breaks MFA. Sync your system time.':
+    'Tu reloj está desfasado {n}s — esto rompe el MFA. Sincronizá la hora del sistema.',
+
+  // STS errors
+  'AWS returned an incomplete set of credentials.':
+    'AWS devolvió un set de credenciales incompleto.',
+  'AWS denied the request.': 'AWS denegó la solicitud.',
+  'Your user may lack permission, or the MFA code/serial is wrong.':
+    'Puede que tu usuario no tenga permiso, o que el código/serial de MFA esté mal.',
+  "The profile's access keys are invalid.": 'Las claves de acceso del perfil son inválidas.',
+  'Check aws_access_key_id / aws_secret_access_key for this profile.':
+    'Revisá aws_access_key_id / aws_secret_access_key de este perfil.',
+  'AWS rejected one of the values.': 'AWS rechazó uno de los valores.',
+  'The MFA code must be the current 6 digits; the role ARN must be valid.':
+    'El código MFA tiene que ser los 6 dígitos actuales; el ARN del rol tiene que ser válido.',
+  'The base credentials have expired.': 'Las credenciales base vencieron.',
+  'Refresh them (re-run mfa/login) and try again.':
+    'Renovalas (volvé a correr mfa/login) y probá de nuevo.',
+  'AWS request failed': 'La solicitud a AWS falló',
+
+  // menu descriptions
+  '— which account / role / profile am I?': '— ¿qué cuenta / rol / perfil estoy usando?',
+  '— start an MFA session': '— iniciar una sesión MFA',
+  '— assume a role (cross-account)': '— asumir un rol (entre cuentas)',
+  '— sign in to SSO': '— iniciar sesión en SSO',
+  '— switch the active profile': '— cambiar el perfil activo',
+  '— add / edit / remove / list': '— agregar / editar / borrar / listar',
+  '— set a profile region': '— setear la región de un perfil',
+  '— check your AWS setup': '— chequear tu configuración de AWS',
+
+  // cli descriptions (shown in --help)
+  'Friendly AWS credentials — wizards for profiles, MFA, assume-role and SSO':
+    'Credenciales AWS amigables — asistentes para perfiles, MFA, assume-role y SSO',
+  'print extra detail': 'mostrar más detalle',
+  'Show the active identity: account, role and profile':
+    'Mostrar la identidad activa: cuenta, rol y perfil',
+  'the AWS profile to use': 'el perfil de AWS a usar',
+  'Manage your AWS profiles in ~/.aws': 'Gestionar tus perfiles de AWS en ~/.aws',
+  'List the profiles found in ~/.aws': 'Listar los perfiles que hay en ~/.aws',
+  'Add a new profile (access keys or SSO)': 'Agregar un perfil nuevo (access keys o SSO)',
+  'Edit a profile (region, keys, MFA serial)': 'Editar un perfil (región, claves, serial MFA)',
+  'Remove a profile from ~/.aws': 'Borrar un perfil de ~/.aws',
+  'the profile to remove': 'el perfil a borrar',
+  'Start an MFA session — creates a temporary "<profile>-mfa" profile':
+    'Iniciar una sesión MFA — crea un perfil temporal "<perfil>-mfa"',
+  'the base profile (with long-lived keys)': 'el perfil base (con claves de larga duración)',
+  'the 6-digit MFA code (enables non-interactive mode)':
+    'el código MFA de 6 dígitos (activa el modo no interactivo)',
+  'the MFA device ARN (mfa_serial)': 'el ARN del dispositivo MFA (mfa_serial)',
+  'session duration in seconds': 'duración de la sesión en segundos',
+  'Assume an IAM role and save the temporary credentials':
+    'Asumir un rol de IAM y guardar las credenciales temporales',
+  'the source profile': 'el perfil de origen',
+  'the role ARN to assume': 'el ARN del rol a asumir',
+  'the role session name': 'el nombre de sesión del rol',
+  'the profile to save the credentials as': 'el perfil con el que guardar las credenciales',
+  'the 6-digit MFA code (if the role needs MFA)':
+    'el código MFA de 6 dígitos (si el rol necesita MFA)',
+  'the MFA device ARN': 'el ARN del dispositivo MFA',
+  'Sign in to IAM Identity Center (SSO)': 'Iniciar sesión en IAM Identity Center (SSO)',
+  'an SSO profile to read the start URL from': 'un perfil SSO del que leer la URL de inicio',
+  'the SSO start URL': 'la URL de inicio de SSO',
+  'the SSO region': 'la región de SSO',
+  'Switch the active profile': 'Cambiar el perfil activo',
+  'the profile to use': 'el perfil a usar',
+  'copy it into the default profile (no env var needed)':
+    'copiarlo al perfil default (sin variable de entorno)',
+  'Set the default region for a profile': 'Setear la región por defecto de un perfil',
+  'the profile': 'el perfil',
+  'the region, e.g. us-east-1': 'la región, ej. us-east-1',
+  'Check your AWS setup (files, clock skew, profiles)':
+    'Chequear tu configuración de AWS (archivos, desfase de reloj, perfiles)',
 };
