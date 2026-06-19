@@ -1,6 +1,6 @@
 {
   "name": "@fsichi/awswiz",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Friendly AWS credentials CLI — interactive wizards for profiles, MFA, assume-role, SSO and more",
   "keywords": [
     "aws",
