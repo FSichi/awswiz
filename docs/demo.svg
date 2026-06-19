@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 500" role="img" font-family="ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace" font-size="15">
+  <title>awswiz demo</title>
+  <desc>An animated terminal cycling through awswiz whoami, mfa, profile list and a summary card.</desc>
+  <style>
+    text { fill: #e6edf3; }
+    .g { fill: #3fb950; }
+    .d { fill: #8b949e; }
+    .b { fill: #79c0ff; }
+    .c { fill: #56d4dd; }
+    .y { fill: #e3b341; }
+    .o { fill: #ff9900; }
+    .m { fill: #d2a8ff; }
+    .sc1 { animation: sc1 20s linear infinite; }
+    .sc1b { animation: sc1b 20s linear infinite; }
+    .sc2 { animation: sc2 20s linear infinite; }
+    .sc2b { animation: sc2b 20s linear infinite; }
+    .sc3 { animation: sc3 20s linear infinite; }
+    .sc3b { animation: sc3b 20s linear infinite; }
+    .sc4 { animation: sc4 20s linear infinite; }
+    .cur { animation: blink 1.06s steps(1) infinite; }
+    @keyframes blink { 0%,49% {opacity:1} 50%,100% {opacity:0} }
+    @keyframes sc1  { 0%{opacity:1} 23%{opacity:1} 25%{opacity:0} 100%{opacity:0} }
+    @keyframes sc1b { 0%{opacity:0} 4%{opacity:1} 23%{opacity:1} 25%{opacity:0} 100%{opacity:0} }
+    @keyframes sc2  { 0%{opacity:0} 25%{opacity:0} 26.5%{opacity:1} 48%{opacity:1} 50%{opacity:0} 100%{opacity:0} }
+    @keyframes sc2b { 0%{opacity:0} 29%{opacity:0} 31%{opacity:1} 48%{opacity:1} 50%{opacity:0} 100%{opacity:0} }
+    @keyframes sc3  { 0%{opacity:0} 50%{opacity:0} 51.5%{opacity:1} 73%{opacity:1} 75%{opacity:0} 100%{opacity:0} }
+    @keyframes sc3b { 0%{opacity:0} 54%{opacity:0} 56%{opacity:1} 73%{opacity:1} 75%{opacity:0} 100%{opacity:0} }
+    @keyframes sc4  { 0%{opacity:0} 75%{opacity:0} 76.5%{opacity:1} 98%{opacity:1} 100%{opacity:0} }
+  </style>
+
+  <rect x="1" y="1" width="758" height="498" rx="13" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+  <rect x="1" y="1" width="758" height="46" rx="13" fill="#161b22"/>
+  <rect x="1" y="34" width="758" height="13" fill="#161b22"/>
+  <circle cx="28" cy="24" r="6" fill="#ff5f57"/>
+  <circle cx="48" cy="24" r="6" fill="#febc2e"/>
+  <circle cx="68" cy="24" r="6" fill="#28c840"/>
+  <text x="380" y="29" class="d" text-anchor="middle" font-size="13">awswiz — zsh</text>
+
+  <g class="sc1">
+    <text x="30" y="92"><tspan class="d">~/project</tspan> <tspan class="g">$</tspan> awswiz whoami<tspan class="cur" dx="4" font-weight="bold">▌</tspan></text>
+  </g>
+  <g class="sc1b">
+    <rect x="30" y="116" width="500" height="148" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="48" y="146"><tspan class="o" font-weight="bold">☁ aws whoami</tspan></text>
+    <text x="48" y="178"><tspan class="d">Account:</tspan>   <tspan font-weight="bold">416711641372</tspan></text>
+    <text x="48" y="206"><tspan class="d">Identity:</tspan>  arn:aws:iam::416711641372:user/facundo.sichi</text>
+    <text x="48" y="244"><tspan class="d">Profile:</tspan>   <tspan class="o">default</tspan>   <tspan class="d">Region:</tspan> <tspan class="c">us-east-1</tspan></text>
+  </g>
+
+  <g class="sc2">
+    <text x="30" y="92"><tspan class="d">~/project</tspan> <tspan class="g">$</tspan> awswiz mfa<tspan class="cur" dx="4" font-weight="bold">▌</tspan></text>
+  </g>
+  <g class="sc2b">
+    <text x="30" y="128"><tspan class="c">?</tspan> Which profile?  <tspan class="b">horsego</tspan></text>
+    <text x="30" y="160"><tspan class="o">⠙</tspan> <tspan class="d">Discovering your MFA device…</tspan></text>
+    <text x="30" y="192"><tspan class="d">MFA device:</tspan> arn:aws:iam::…:mfa/Google-Auth-MFA</text>
+    <text x="30" y="224"><tspan class="c">?</tspan> Enter the 6-digit code:  <tspan class="b">••••••</tspan></text>
+    <text x="30" y="264"><tspan class="g">✔</tspan> MFA session ready → <tspan class="o">horsego-mfa</tspan>  <tspan class="d">(expires in 11h 59m)</tspan></text>
+  </g>
+
+  <g class="sc3">
+    <text x="30" y="92"><tspan class="d">~/project</tspan> <tspan class="g">$</tspan> awswiz profile list<tspan class="cur" dx="4" font-weight="bold">▌</tspan></text>
+  </g>
+  <g class="sc3b">
+    <text x="30" y="132" class="d">3 profiles in ~/.aws:</text>
+    <text x="30" y="168"><tspan font-weight="bold">default   </tspan>  <tspan class="g">keys</tspan>          <tspan class="c">us-east-1</tspan></text>
+    <text x="30" y="200"><tspan font-weight="bold">boostivity</tspan>  <tspan class="m">sso</tspan>           <tspan class="c">us-east-1</tspan></text>
+    <text x="30" y="232"><tspan font-weight="bold">horsego-mfa</tspan> <tspan class="y">mfa/session</tspan>   <tspan class="c">us-east-1</tspan></text>
+  </g>
+
+  <g class="sc4">
+    <text x="380" y="146" text-anchor="middle" font-size="40" font-weight="bold"><tspan class="o">☁</tspan> awswiz</text>
+    <text x="380" y="180" text-anchor="middle" class="d" font-size="16">friendly AWS credentials — profiles, MFA, SSO</text>
+    <text x="380" y="244" text-anchor="middle"><tspan class="o">✦</tspan> whoami · mfa · assume · login · use · region · profile · doctor</text>
+    <text x="380" y="284" text-anchor="middle"><tspan class="c">🌎</tspan> English &amp; Español      <tspan class="o">⚡</tspan> no aws CLI required</text>
+    <text x="380" y="320" text-anchor="middle" class="d">open source · npm · TypeScript · Windows / macOS / Linux</text>
+    <rect x="258" y="346" width="244" height="40" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="380" y="371" text-anchor="middle"><tspan class="g">$</tspan> npm i -g <tspan class="b">@fsichi/awswiz</tspan></text>
+  </g>
+</svg>
