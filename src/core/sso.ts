@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -31,11 +31,29 @@ export interface SsoToken {
  * sso-session NAME (modern format) or of the start URL (legacy format). Writing
  * to the wrong key means the login "succeeds" but nothing ever finds the token.
  */
-function cachePath(target: SsoLoginTarget): string {
-  const key = createHash('sha1')
-    .update(target.sessionName ?? target.startUrl)
-    .digest('hex');
+export function ssoCacheKeySource(target: Pick<SsoLoginTarget, 'sessionName' | 'startUrl'>): string {
+  return target.sessionName ?? target.startUrl;
+}
+
+export function ssoCachePath(keySource: string): string {
+  const key = createHash('sha1').update(keySource).digest('hex');
   return join(homedir(), '.aws', 'sso', 'cache', `${key}.json`);
+}
+
+function cachePath(target: SsoLoginTarget): string {
+  return ssoCachePath(ssoCacheKeySource(target));
+}
+
+/** Expiry of a cached SSO token (by session name or start URL), or null when absent/invalid. */
+export function readSsoTokenExpiry(keySource: string): Date | null {
+  try {
+    const raw = JSON.parse(readFileSync(ssoCachePath(keySource), 'utf8')) as { expiresAt?: string };
+    if (!raw.expiresAt) return null;
+    const date = new Date(raw.expiresAt);
+    return Number.isNaN(date.getTime()) ? null : date;
+  } catch {
+    return null;
+  }
 }
 
 /**

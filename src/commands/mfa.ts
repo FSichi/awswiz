@@ -112,6 +112,8 @@ export async function mfaCommand(opts: MfaOptions = {}): Promise<void> {
     aws_access_key_id: creds.accessKeyId,
     aws_secret_access_key: creds.secretAccessKey,
     aws_session_token: creds.sessionToken,
+    // Recorded so "awswiz status" can show when this session dies.
+    aws_session_expiration: creds.expiration.toISOString(),
   });
   if (region) writeConfigProfile(target, { region });
 

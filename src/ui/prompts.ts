@@ -2,6 +2,7 @@ import {
   confirm as clackConfirm,
   isCancel,
   multiselect as clackMultiselect,
+  password as clackPassword,
   select as clackSelect,
   text as clackText,
 } from '@clack/prompts';
@@ -66,9 +67,9 @@ export async function input(opts: {
 }
 
 export async function password(opts: { message: string; validate?: Validate }): Promise<string> {
-  // clack has no native masked input; a plain text prompt keeps secrets off the
-  // command history while we add a dedicated masked prompt later.
-  return unwrap(await clackText({ message: opts.message, validate: adaptValidate(opts.validate) }));
+  return unwrap(
+    await clackPassword({ message: opts.message, mask: '•', validate: adaptValidate(opts.validate) }),
+  );
 }
 
 export async function confirm(opts: { message: string; default?: boolean }): Promise<boolean> {

@@ -26,14 +26,43 @@ Run `awswiz` on its own (in a terminal) to open an interactive menu. Or call any
 
 | Command | What it does |
 |---|---|
+| `awswiz status` | Which sessions are alive and when do they expire? Your daily "am I still logged in?". |
 | `awswiz whoami` | Which account, role and profile am I using right now? |
 | `awswiz mfa` | Start an MFA session — auto-discovers your device, creates a temporary `<profile>-mfa` profile. |
 | `awswiz assume` | Assume an IAM role (cross-account), with MFA, and save the temporary credentials. |
-| `awswiz login` | Sign in to IAM Identity Center (SSO) via the browser device flow. |
+| `awswiz login` | Sign in to IAM Identity Center (SSO) via the browser device flow — then verifies it really worked. |
+| `awswiz console` | Open the AWS **web console** in your browser, already signed in with a profile. |
+| `awswiz exec` | Run any command with a profile's credentials: `awswiz exec -p prod -- terraform plan`. |
 | `awswiz use` | Switch the active profile (prints the right export line, or writes `[default]`). |
 | `awswiz region` | Set the default region for a profile. |
-| `awswiz profile` | Manage profiles: `list`, `add`, `edit`, `remove`. |
+| `awswiz profile` | Manage profiles: `list`, `add` (masked secret input), `edit`, `remove`. |
 | `awswiz doctor` | Check your setup: `~/.aws` files, profiles, and clock skew (the silent MFA killer). |
+| `awswiz update` | Update awswiz to the latest version. |
+
+### `awswiz status`
+
+The command you run every morning. Shows each temporary session (MFA / assumed roles) with its remaining lifetime, each SSO session's token state, and the active profile — with the exact renewal command next to anything expired:
+
+```
+Temporary sessions:
+  horsego-mfa   ✔ expires in 11h 40m
+  codetria-mfa  ✖ expired   → awswiz mfa -p codetria
+
+SSO sessions:
+  boostivity    ✔ signed in — 6h 12m left
+
+Active profile: default (AWS_PROFILE not set)
+```
+
+Sessions created by awswiz record their expiration (`aws_session_expiration`) so status can tell you *before* AWS fails with a cryptic `ExpiredToken`.
+
+### `awswiz exec`
+
+Run one command with a profile's credentials — no shell exports, no `[default]` rewriting: `awswiz exec -p horsego-mfa -- aws s3 ls`. Everything after `--` is passed through untouched. Warns upfront if the session is already expired.
+
+### `awswiz console`
+
+`awswiz console -p prod` opens the AWS web console in your browser, already signed in with that profile (via the AWS sign-in federation endpoint). Works with long-lived keys (federation token), SSO and role profiles. `--print-url` prints the link instead of opening the browser — note the URL itself is a short-lived credential.
 
 ### `awswiz mfa`
 
@@ -71,16 +100,20 @@ Verifies your `~/.aws` files exist, counts your profiles, and — crucially — 
 
 No `aws` CLI is spawned or required. Credentials files are written with `0600` permissions on Unix, and secrets are never logged.
 
-## Non-interactive mode
+## Non-interactive mode & AI agents
 
-The wizards are for humans, but the credential commands also take flags so scripts and CI can run them headless:
+The wizards are for humans, but the credential commands also take flags so scripts, CI **and AI coding agents** can run them headless — a bare interactive command in a non-TTY context fails fast instead of hanging:
 
 ```bash
 awswiz mfa --profile prod --code 123456
 awswiz assume --profile prod --role arn:aws:iam::123456789012:role/Admin --code 123456
+awswiz exec -p prod -- aws s3 ls
 awswiz region prod eu-west-1
 awswiz use prod --default
+awswiz status        # read-only, always safe
 ```
+
+The repo ships an [`AGENTS.md`](AGENTS.md) with the full non-interactive matrix and the security rules agents should follow (never pass secrets as flags, never log sign-in URLs). awswiz deliberately does **not** accept access keys as CLI flags — they would leak into shell history.
 
 ## Language
 

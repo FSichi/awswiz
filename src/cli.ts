@@ -2,10 +2,13 @@
 import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { assumeCommand } from './commands/assume.js';
+import { consoleCommand } from './commands/console.js';
 import { doctorCommand } from './commands/doctor.js';
+import { execCommand } from './commands/exec.js';
 import { loginCommand } from './commands/login.js';
 import { menuCommand } from './commands/menu.js';
 import { mfaCommand } from './commands/mfa.js';
+import { statusCommand } from './commands/status.js';
 import {
   profileAddCommand,
   profileEditCommand,
@@ -29,6 +32,7 @@ const pkg = JSON.parse(
 checkForUpdates(pkg);
 
 const program = new Command();
+program.enablePositionalOptions(); // lets "exec" pass flags through to the child command
 
 program
   .name('awswiz')
@@ -38,10 +42,30 @@ program
   .hook('preAction', (thisCommand) => setVerbose(Boolean(thisCommand.opts().verbose)));
 
 program
+  .command('status')
+  .description(t('Show which sessions are alive and when they expire'))
+  .action(statusCommand);
+
+program
   .command('whoami')
   .description(t('Show the active identity: account, role and profile'))
   .option('-p, --profile <name>', t('the AWS profile to use'))
   .action(whoamiCommand);
+
+program
+  .command('exec')
+  .description(t("Run a command with a profile's credentials (sets AWS_PROFILE)"))
+  .passThroughOptions()
+  .option('-p, --profile <name>', t('the AWS profile to use'))
+  .argument('<command...>', t('the command to run'))
+  .action((command, opts) => execCommand(command, opts));
+
+program
+  .command('console')
+  .description(t('Open the AWS web console signed in with a profile'))
+  .option('-p, --profile <name>', t('the AWS profile to use'))
+  .option('--print-url', t('print the sign-in URL instead of opening the browser'))
+  .action((opts) => consoleCommand({ profile: opts.profile, printUrl: opts.printUrl }));
 
 const profile = program.command('profile').description(t('Manage your AWS profiles in ~/.aws'));
 profile.command('list').description(t('List the profiles found in ~/.aws')).action(profileListCommand);

@@ -4,11 +4,13 @@ import { t } from '../ui/i18n.js';
 import { banner, log, outro } from '../ui/output.js';
 import { select } from '../ui/prompts.js';
 import { assumeCommand } from './assume.js';
+import { consoleCommand } from './console.js';
 import { doctorCommand } from './doctor.js';
 import { loginCommand } from './login.js';
 import { mfaCommand } from './mfa.js';
 import { profileMenuCommand } from './profile.js';
 import { regionCommand } from './region.js';
+import { statusCommand } from './status.js';
 import { updateCommand } from './update.js';
 import { useCommand } from './use.js';
 import { whoamiCommand } from './whoami.js';
@@ -17,7 +19,19 @@ const { version } = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
 ) as { version: string };
 
-type MenuAction = 'whoami' | 'mfa' | 'assume' | 'login' | 'use' | 'profiles' | 'region' | 'doctor' | 'update' | 'exit';
+type MenuAction =
+  | 'status'
+  | 'whoami'
+  | 'mfa'
+  | 'assume'
+  | 'login'
+  | 'console'
+  | 'use'
+  | 'profiles'
+  | 'region'
+  | 'doctor'
+  | 'update'
+  | 'exit';
 
 /** Interactive launcher shown when `awswiz` is run with no command (and a TTY). */
 export async function menuCommand(): Promise<void> {
@@ -26,10 +40,12 @@ export async function menuCommand(): Promise<void> {
   const action = await select<MenuAction>({
     message: t('What do you want to do?'),
     choices: [
+      { name: `${pc.bold('status')}    ${pc.dim(t('— sessions, expirations, active profile'))}`, value: 'status' },
       { name: `${pc.bold('whoami')}    ${pc.dim(t('— which account / role / profile am I?'))}`, value: 'whoami' },
       { name: `${pc.bold('mfa')}       ${pc.dim(t('— start an MFA session'))}`, value: 'mfa' },
       { name: `${pc.bold('assume')}    ${pc.dim(t('— assume a role (cross-account)'))}`, value: 'assume' },
       { name: `${pc.bold('login')}     ${pc.dim(t('— sign in to SSO'))}`, value: 'login' },
+      { name: `${pc.bold('console')}   ${pc.dim(t('— open the AWS web console'))}`, value: 'console' },
       { name: `${pc.bold('use')}       ${pc.dim(t('— switch the active profile'))}`, value: 'use' },
       { name: `${pc.bold('profiles')}  ${pc.dim(t('— add / edit / remove / list'))}`, value: 'profiles' },
       { name: `${pc.bold('region')}    ${pc.dim(t('— set a profile region'))}`, value: 'region' },
@@ -37,12 +53,14 @@ export async function menuCommand(): Promise<void> {
       { name: `${pc.bold('update')}    ${pc.dim(t('— update to latest version'))}`, value: 'update' },
       { name: pc.dim(t('exit')), value: 'exit' },
     ],
-    pageSize: 11,
+    pageSize: 13,
   });
 
   log.blank();
 
   switch (action) {
+    case 'status':
+      return statusCommand();
     case 'whoami':
       return whoamiCommand();
     case 'mfa':
@@ -51,6 +69,8 @@ export async function menuCommand(): Promise<void> {
       return assumeCommand();
     case 'login':
       return loginCommand();
+    case 'console':
+      return consoleCommand();
     case 'use':
       return useCommand();
     case 'profiles':

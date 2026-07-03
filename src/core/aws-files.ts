@@ -86,6 +86,27 @@ export async function getConfigKeys(profile: string): Promise<Record<string, str
   return out;
 }
 
+/** The raw ~/.aws/credentials keys for a profile (includes aws_session_expiration when awswiz wrote it). */
+export async function getCredentialKeys(profile: string): Promise<Record<string, string>> {
+  const { credentialsFile } = await loadSharedConfigFiles();
+  const section = credentialsFile[profile];
+  if (!section) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(section)) if (typeof v === 'string') out[k] = v;
+  return out;
+}
+
+/**
+ * Session expiration recorded in the credentials file, checking the keys used by
+ * awswiz and other common tools. Null when nothing (parseable) was recorded.
+ */
+export function parseSessionExpiration(keys: Record<string, string>): Date | null {
+  const raw = keys.aws_session_expiration ?? keys.x_security_token_expires ?? keys.expiration;
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 /** The raw keys of an [sso-session <name>] section in ~/.aws/config, or null. */
 export async function getSsoSessionKeys(name: string): Promise<Record<string, string> | null> {
   const keys = await getConfigKeys(`sso-session.${name}`);

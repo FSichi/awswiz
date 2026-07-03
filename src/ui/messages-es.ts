@@ -216,6 +216,55 @@ export const MESSAGES_ES: Record<string, string> = {
   '— set a profile region': '— setear la región de un perfil',
   '— check your AWS setup': '— chequear tu configuración de AWS',
 
+  // status
+  'Show which sessions are alive and when they expire':
+    'Mostrar qué sesiones están vivas y cuándo vencen',
+  'Temporary sessions:': 'Sesiones temporales:',
+  'none — start one with "awswiz mfa" or "awswiz assume"':
+    'ninguna — iniciá una con "awswiz mfa" o "awswiz assume"',
+  'no expiry recorded': 'sin vencimiento registrado',
+  'expires in {rel}': 'vence en {rel}',
+  'expired': 'vencida',
+  'SSO sessions:': 'Sesiones SSO:',
+  'signed in — {rel} left': 'sesión activa — quedan {rel}',
+  'not signed in': 'sin sesión',
+  'Active profile': 'Perfil activo',
+  '(AWS_PROFILE not set)': '(AWS_PROFILE sin setear)',
+  '— sessions, expirations, active profile': '— sesiones, vencimientos, perfil activo',
+
+  // exec
+  "Run a command with a profile's credentials (sets AWS_PROFILE)":
+    'Correr un comando con las credenciales de un perfil (setea AWS_PROFILE)',
+  'the command to run': 'el comando a correr',
+  'No command given.': 'No indicaste un comando.',
+  'Example: awswiz exec -p prod -- aws s3 ls': 'Ejemplo: awswiz exec -p prod -- aws s3 ls',
+  'Which profile should the command run with?': '¿Con qué perfil corre el comando?',
+  'The "{profile}" session is expired — the command will likely fail.':
+    'La sesión de "{profile}" está vencida — el comando probablemente falle.',
+  'Renew it first: awswiz mfa -p {base}': 'Renovala primero: awswiz mfa -p {base}',
+  'Could not run "{cmd}": {err}': 'No se pudo ejecutar "{cmd}": {err}',
+
+  // console
+  'Open the AWS web console signed in with a profile':
+    'Abrir la consola web de AWS logueado con un perfil',
+  'print the sign-in URL instead of opening the browser':
+    'imprimir la URL de acceso en vez de abrir el navegador',
+  'Which profile do you want to open the console with?':
+    '¿Con qué perfil querés abrir la consola?',
+  'Creating a console sign-in link…': 'Creando el enlace de acceso a la consola…',
+  'AWS rejected the federation request (HTTP {status}).':
+    'AWS rechazó la solicitud de federación (HTTP {status}).',
+  'The credentials may be expired — renew the session and try again.':
+    'Las credenciales pueden estar vencidas — renová la sesión y probá de nuevo.',
+  'AWS did not return a sign-in token.': 'AWS no devolvió un token de acceso.',
+  'Console opened in your browser — profile {profile}, region {region}.':
+    'Consola abierta en tu navegador — perfil {profile}, región {region}.',
+  'Console sign-in needs role/SSO credentials or long-lived keys.':
+    'El acceso a la consola necesita credenciales de rol/SSO o claves de larga duración.',
+  'Sessions from GetSessionToken cannot federate — use the base profile.':
+    'Las sesiones de GetSessionToken no pueden federar — usá el perfil base.',
+  '— open the AWS web console': '— abrir la consola web de AWS',
+
   // cli descriptions (shown in --help)
   'Friendly AWS credentials — wizards for profiles, MFA, assume-role and SSO':
     'Credenciales AWS amigables — asistentes para perfiles, MFA, assume-role y SSO',
