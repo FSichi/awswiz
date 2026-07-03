@@ -44,6 +44,8 @@ export async function listProfiles(): Promise<ProfileInfo[]> {
 
   const profiles: ProfileInfo[] = [];
   for (const name of names) {
+    // [sso-session X] sections are login endpoints, not usable profiles.
+    if (name.startsWith('sso-session.')) continue;
     const fromConfig = configFile[name] ?? {};
     const fromCreds = credentialsFile[name] ?? {};
     const merged = { ...fromConfig, ...fromCreds };
@@ -82,6 +84,20 @@ export async function getConfigKeys(profile: string): Promise<Record<string, str
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(section)) if (typeof v === 'string') out[k] = v;
   return out;
+}
+
+/** The raw keys of an [sso-session <name>] section in ~/.aws/config, or null. */
+export async function getSsoSessionKeys(name: string): Promise<Record<string, string> | null> {
+  const keys = await getConfigKeys(`sso-session.${name}`);
+  return Object.keys(keys).length > 0 ? keys : null;
+}
+
+/** Names of profiles that can SSO-login (they have sso_session or sso_start_url). */
+export async function listSsoProfiles(): Promise<string[]> {
+  const { configFile } = await loadSharedConfigFiles();
+  return Object.keys(configFile)
+    .filter((name) => !name.startsWith('sso-session.'))
+    .filter((name) => configFile[name]?.sso_session || configFile[name]?.sso_start_url);
 }
 
 /** Resolve the effective region for a profile: profile → env → fallback. */

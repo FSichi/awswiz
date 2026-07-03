@@ -133,6 +133,22 @@ export const MESSAGES_ES: Record<string, string> = {
   'Profile "{profile}" has no sso_start_url.': 'El perfil "{profile}" no tiene sso_start_url.',
   'Add it with "awswiz profile add" (SSO), or pass --start-url.':
     'Agregalo con "awswiz profile add" (SSO), o pasá --start-url.',
+  'The sso-session "{session}" was not found in ~/.aws/config.':
+    'No se encontró la sso-session "{session}" en ~/.aws/config.',
+  'The sso-session "{session}" has no sso_start_url.':
+    'La sso-session "{session}" no tiene sso_start_url.',
+  'Profile "{profile}" is not an SSO profile.': 'El perfil "{profile}" no es un perfil SSO.',
+  'It has no sso_session or sso_start_url. Add one with "awswiz profile add" (SSO).':
+    'No tiene sso_session ni sso_start_url. Agregá uno con "awswiz profile add" (SSO).',
+  'Using the only SSO profile: {profile}': 'Usando el único perfil SSO: {profile}',
+  'Which SSO profile do you want to sign in with?': '¿Con qué perfil SSO querés iniciar sesión?',
+  'Verifying that the session actually works…': 'Verificando que la sesión realmente funcione…',
+  'Verified — {profile} is ready (account {account}).':
+    'Verificado — {profile} está listo (cuenta {account}).',
+  'Signed in, but "{profile}" still could not resolve credentials.':
+    'Sesión iniciada, pero "{profile}" todavía no puede resolver credenciales.',
+  'Check sso_account_id / sso_role_name in the profile.':
+    'Revisá sso_account_id / sso_role_name en el perfil.',
   'Approve this sign-in in your browser:': 'Aprobá este inicio de sesión en tu navegador:',
   'Verification code': 'Código de verificación',
   'Waiting for you to approve…': 'Esperando que apruebes…',

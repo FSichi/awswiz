@@ -12,59 +12,62 @@ import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
 import { sleep } from './util.js';
 
+export interface SsoLoginTarget {
+  startUrl: string;
+  region: string;
+  /** [sso-session X] name when the modern config format is used; null for legacy profiles. */
+  sessionName: string | null;
+  /** Registration scopes (modern format), e.g. ["sso:account:access"]. */
+  scopes: string[];
+}
+
 export interface SsoToken {
   accessToken: string;
   expiresAt: Date;
-  region: string;
-  startUrl: string;
-}
-
-/** Write the SSO access token to the cache the AWS SDK/CLI reads (legacy start-url key). */
-function writeSsoCache(token: SsoToken): void {
-  const dir = join(homedir(), '.aws', 'sso', 'cache');
-  mkdirSync(dir, { recursive: true });
-  const key = createHash('sha1').update(token.startUrl).digest('hex');
-  writeFileSync(
-    join(dir, `${key}.json`),
-    JSON.stringify(
-      {
-        startUrl: token.startUrl,
-        region: token.region,
-        accessToken: token.accessToken,
-        expiresAt: token.expiresAt.toISOString(),
-      },
-      null,
-      2,
-    ),
-    'utf8',
-  );
 }
 
 /**
- * Run the IAM Identity Center (SSO) device-authorization flow:
- * register a client, ask the user to approve a code in the browser, then poll
- * until a token is issued and cache it. Returns the token.
+ * The SDK and the aws CLI look tokens up in ~/.aws/sso/cache by the SHA-1 of the
+ * sso-session NAME (modern format) or of the start URL (legacy format). Writing
+ * to the wrong key means the login "succeeds" but nothing ever finds the token.
+ */
+function cachePath(target: SsoLoginTarget): string {
+  const key = createHash('sha1')
+    .update(target.sessionName ?? target.startUrl)
+    .digest('hex');
+  return join(homedir(), '.aws', 'sso', 'cache', `${key}.json`);
+}
+
+/**
+ * Run the IAM Identity Center (SSO) device-authorization flow and cache the
+ * token exactly where the SDK/CLI expect it, including the client registration
+ * (clientId/clientSecret) so session-based profiles can refresh.
  */
 export async function ssoDeviceLogin(opts: {
-  startUrl: string;
-  region: string;
+  target: SsoLoginTarget;
   onPrompt: (info: { url: string; userCode: string }) => void;
 }): Promise<SsoToken> {
-  const client = new SSOOIDCClient({ region: opts.region });
+  const { target } = opts;
+  const client = new SSOOIDCClient({ region: target.region });
 
   const reg = await client.send(
-    new RegisterClientCommand({ clientName: 'awswiz', clientType: 'public' }),
+    new RegisterClientCommand({
+      clientName: 'awswiz',
+      clientType: 'public',
+      // Scopes matter for session-based logins (enable account access + refresh).
+      ...(target.sessionName && target.scopes.length > 0 ? { scopes: target.scopes } : {}),
+    }),
   );
   const auth = await client.send(
     new StartDeviceAuthorizationCommand({
       clientId: reg.clientId,
       clientSecret: reg.clientSecret,
-      startUrl: opts.startUrl,
+      startUrl: target.startUrl,
     }),
   );
 
   opts.onPrompt({
-    url: auth.verificationUriComplete ?? auth.verificationUri ?? opts.startUrl,
+    url: auth.verificationUriComplete ?? auth.verificationUri ?? target.startUrl,
     userCode: auth.userCode ?? '',
   });
 
@@ -82,14 +85,32 @@ export async function ssoDeviceLogin(opts: {
           deviceCode: auth.deviceCode,
         }),
       );
-      const token: SsoToken = {
-        accessToken: tok.accessToken ?? '',
-        expiresAt: new Date(Date.now() + (tok.expiresIn ?? 3600) * 1000),
-        region: opts.region,
-        startUrl: opts.startUrl,
-      };
-      writeSsoCache(token);
-      return token;
+      const expiresAt = new Date(Date.now() + (tok.expiresIn ?? 3600) * 1000);
+
+      const dir = join(homedir(), '.aws', 'sso', 'cache');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        cachePath(target),
+        JSON.stringify(
+          {
+            startUrl: target.startUrl,
+            region: target.region,
+            accessToken: tok.accessToken ?? '',
+            expiresAt: expiresAt.toISOString(),
+            clientId: reg.clientId,
+            clientSecret: reg.clientSecret,
+            registrationExpiresAt: reg.clientSecretExpiresAt
+              ? new Date(reg.clientSecretExpiresAt * 1000).toISOString()
+              : undefined,
+            ...(tok.refreshToken ? { refreshToken: tok.refreshToken } : {}),
+          },
+          null,
+          2,
+        ),
+        'utf8',
+      );
+
+      return { accessToken: tok.accessToken ?? '', expiresAt };
     } catch (err) {
       const name = (err as Error).name;
       if (name === 'AuthorizationPendingException') continue;
