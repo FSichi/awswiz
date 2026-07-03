@@ -59,22 +59,25 @@
   </g>
 
   <g class="sc3">
-    <text x="30" y="92"><tspan class="d">~/project</tspan> <tspan class="g">$</tspan> awswiz profile list<tspan class="cur" dx="4" font-weight="bold">▌</tspan></text>
+    <text x="30" y="92"><tspan class="d">~/project</tspan> <tspan class="g">$</tspan> awswiz status<tspan class="cur" dx="4" font-weight="bold">▌</tspan></text>
   </g>
   <g class="sc3b">
-    <text x="30" y="132" class="d">3 profiles in ~/.aws:</text>
-    <text x="30" y="168"><tspan font-weight="bold">default   </tspan>  <tspan class="g">keys</tspan>          <tspan class="c">us-east-1</tspan></text>
-    <text x="30" y="200"><tspan font-weight="bold">boostivity</tspan>  <tspan class="m">sso</tspan>           <tspan class="c">us-east-1</tspan></text>
-    <text x="30" y="232"><tspan font-weight="bold">horsego-mfa</tspan> <tspan class="y">mfa/session</tspan>   <tspan class="c">us-east-1</tspan></text>
+    <text x="30" y="130" font-weight="bold">Temporary sessions:</text>
+    <text x="30" y="162">  <tspan font-weight="bold">horsego-mfa </tspan>  <tspan class="g">✔ expires in 11h 40m</tspan></text>
+    <text x="30" y="194">  <tspan font-weight="bold">codetria-mfa</tspan>  <tspan fill="#f85149">✖ expired</tspan>   <tspan class="d">→ awswiz mfa -p codetria</tspan></text>
+    <text x="30" y="234" font-weight="bold">SSO sessions:</text>
+    <text x="30" y="266">  <tspan font-weight="bold">boostivity  </tspan>  <tspan class="g">✔ signed in — 6h 12m left</tspan></text>
+    <text x="30" y="306"><tspan class="d">Active profile:</tspan> <tspan class="o">default</tspan></text>
   </g>
 
   <g class="sc4">
-    <text x="380" y="146" text-anchor="middle" font-size="40" font-weight="bold"><tspan class="o">☁</tspan> awswiz</text>
-    <text x="380" y="180" text-anchor="middle" class="d" font-size="16">friendly AWS credentials — profiles, MFA, SSO</text>
-    <text x="380" y="244" text-anchor="middle"><tspan class="o">✦</tspan> whoami · mfa · assume · login · use · region · profile · doctor</text>
-    <text x="380" y="284" text-anchor="middle"><tspan class="c">🌎</tspan> English &amp; Español      <tspan class="o">⚡</tspan> no aws CLI required</text>
-    <text x="380" y="320" text-anchor="middle" class="d">open source · npm · TypeScript · Windows / macOS / Linux</text>
-    <rect x="258" y="346" width="244" height="40" rx="8" fill="#161b22" stroke="#30363d"/>
-    <text x="380" y="371" text-anchor="middle"><tspan class="g">$</tspan> npm i -g <tspan class="b">@fsichi/awswiz</tspan></text>
+    <text x="380" y="140" text-anchor="middle" font-size="40" font-weight="bold"><tspan class="o">☁</tspan> awswiz</text>
+    <text x="380" y="174" text-anchor="middle" class="d" font-size="16">friendly AWS credentials — for humans and AI agents</text>
+    <text x="380" y="234" text-anchor="middle"><tspan class="o">✦</tspan> status · whoami · mfa · assume · login · console</text>
+    <text x="380" y="266" text-anchor="middle"><tspan class="o">✦</tspan> exec · use · region · profile · doctor · update</text>
+    <text x="380" y="306" text-anchor="middle"><tspan class="c">🌎</tspan> English &amp; Español      <tspan class="o">⚡</tspan> no aws CLI required</text>
+    <text x="380" y="340" text-anchor="middle" class="d">open source · npm · TypeScript · Windows / macOS / Linux</text>
+    <rect x="258" y="362" width="244" height="40" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="380" y="387" text-anchor="middle"><tspan class="g">$</tspan> npm i -g <tspan class="b">@fsichi/awswiz</tspan></text>
   </g>
 </svg>

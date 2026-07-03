@@ -66,7 +66,7 @@ Run one command with a profile's credentials — no shell exports, no `[default]
 
 ### `awswiz mfa`
 
-The one you'll run every morning. Pick the profile with your long-lived keys; awswiz **auto-discovers your MFA device** (via `iam:ListMFADevices`), asks for the 6-digit code, and stores a temporary session as `<profile>-mfa` — the long-standing convention. It shows when the session expires.
+The MFA ritual, minus the pain. Pick the profile with your long-lived keys; awswiz **auto-discovers your MFA device** (via `iam:ListMFADevices`), asks for the 6-digit code, and stores a temporary session as `<profile>-mfa` — the long-standing convention. The expiration is shown and recorded, so `awswiz status` can warn you before it bites.
 
 ```bash
 awswiz mfa                              # interactive
@@ -79,7 +79,7 @@ Assume a role in another account using a source profile's credentials. Prompts f
 
 ### `awswiz login` (SSO)
 
-Runs the IAM Identity Center device-authorization flow: opens your browser, you approve a code, and awswiz caches the token where the SDK/CLI expect it.
+Picks the SSO profile straight from your config — resolving the modern `[sso-session]` sections, so you never type the start URL — and runs the IAM Identity Center device-authorization flow: your browser opens, you approve, done. The token is cached **exactly where the SDK and the `aws` CLI look for it** (session-name key for modern configs, start-URL key for legacy ones), so everything else just works afterwards. And it doesn't merely claim success: it verifies the profile resolves credentials via STS and shows you the account you landed in.
 
 ### `awswiz use`
 
@@ -96,7 +96,9 @@ Verifies your `~/.aws` files exist, counts your profiles, and — crucially — 
 | **Profiles** | awswiz reads/writes `~/.aws/config` and `~/.aws/credentials` directly, with a comment-preserving INI editor — your formatting and comments survive. |
 | **MFA / assume-role** | `@aws-sdk/client-sts` (`GetSessionToken`, `AssumeRole`). |
 | **MFA device discovery** | `@aws-sdk/client-iam` (`ListMFADevices`). |
-| **SSO** | `@aws-sdk/client-sso-oidc` device flow. |
+| **SSO** | `@aws-sdk/client-sso-oidc` device flow, token cached with the same keys the CLI uses. |
+| **Web console sign-in** | AWS sign-in federation endpoint — `GetFederationToken` for long-lived keys, direct temporary credentials for SSO/role profiles. |
+| **Session expiry** | `mfa`/`assume` record `aws_session_expiration` in the credentials file; `status` and `exec` read it. |
 
 No `aws` CLI is spawned or required. Credentials files are written with `0600` permissions on Unix, and secrets are never logged.
 
