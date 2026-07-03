@@ -140,7 +140,6 @@ export const MESSAGES_ES: Record<string, string> = {
   'Profile "{profile}" is not an SSO profile.': 'El perfil "{profile}" no es un perfil SSO.',
   'It has no sso_session or sso_start_url. Add one with "awswiz profile add" (SSO).':
     'No tiene sso_session ni sso_start_url. Agregá uno con "awswiz profile add" (SSO).',
-  'Using the only SSO profile: {profile}': 'Usando el único perfil SSO: {profile}',
   'Which SSO profile do you want to sign in with?': '¿Con qué perfil SSO querés iniciar sesión?',
   'Verifying that the session actually works…': 'Verificando que la sesión realmente funcione…',
   'Verified — {profile} is ready (account {account}).':

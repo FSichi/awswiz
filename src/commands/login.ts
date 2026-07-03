@@ -66,12 +66,11 @@ export async function loginCommand(opts: LoginOptions = {}): Promise<void> {
     target = { startUrl: opts.startUrl.trim(), region: region.trim(), sessionName: null, scopes: [] };
   } else {
     // Pick an SSO-capable profile from ~/.aws instead of asking for the URL.
+    // Always show the picker (even for a single profile) so the user sees and
+    // confirms which profile they are signing in to; -p skips it for scripts.
     if (!profileName) {
       const candidates = await listSsoProfiles();
-      if (candidates.length === 1) {
-        profileName = candidates[0];
-        log.dim(`  ${t('Using the only SSO profile: {profile}', { profile: profileName! })}`);
-      } else if (candidates.length > 1) {
+      if (candidates.length > 0) {
         assertInteractive();
         profileName = await select({
           message: t('Which SSO profile do you want to sign in with?'),
