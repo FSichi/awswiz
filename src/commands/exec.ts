@@ -1,13 +1,45 @@
 import { spawnSync } from 'node:child_process';
 import pc from 'picocolors';
-import { getCredentialKeys, listProfiles, parseSessionExpiration } from '../core/aws-files.js';
+import { getCredentialKeys, getProfile, listProfiles, parseSessionExpiration } from '../core/aws-files.js';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
 import { log } from '../ui/output.js';
-import { assertInteractive, select } from '../ui/prompts.js';
+import { assertInteractive, confirm, select } from '../ui/prompts.js';
 
 export interface ExecOptions {
   profile?: string;
+}
+
+const isInteractive = () => Boolean(process.stdin.isTTY && process.stdout.isTTY);
+
+/**
+ * An expired session is a dead end for the command about to run, so offer to
+ * renew it right here instead of letting AWS fail with a cryptic ExpiredToken.
+ * Only `<base>-mfa` profiles can be renewed unattended-ish (base profile + a code).
+ */
+async function ensureFreshSession(profile: string): Promise<void> {
+  const expiration = parseSessionExpiration(await getCredentialKeys(profile));
+  if (!expiration || expiration > new Date()) return;
+
+  const base = profile.replace(/-mfa$/, '');
+  const renewable = base !== profile && (await getProfile(base)) !== undefined;
+
+  if (!renewable || !isInteractive()) {
+    log.warn(t('The "{profile}" session is expired — the command will likely fail.', { profile }));
+    if (renewable) log.dim(`  ${t('Renew it first: awswiz mfa -p {base}', { base })}`);
+    return;
+  }
+
+  log.warn(t('The "{profile}" session expired.', { profile }));
+  const renew = await confirm({ message: t('Renew it now with MFA?'), default: true });
+  if (!renew) {
+    log.dim(t('Continuing with the expired session — the command will likely fail.'));
+    return;
+  }
+
+  const { mfaCommand } = await import('./mfa.js');
+  await mfaCommand({ profile: base });
+  log.blank();
 }
 
 /**
@@ -31,12 +63,7 @@ export async function execCommand(command: string[], opts: ExecOptions = {}): Pr
     });
   }
 
-  // Warn early when the session is already dead — clearer than the AWS error.
-  const expiration = parseSessionExpiration(await getCredentialKeys(profile));
-  if (expiration && expiration < new Date()) {
-    log.warn(t('The "{profile}" session is expired — the command will likely fail.', { profile }));
-    log.dim(`  ${t('Renew it first: awswiz mfa -p {base}', { base: profile.replace(/-mfa$/, '') })}`);
-  }
+  await ensureFreshSession(profile);
 
   log.dim(`  AWS_PROFILE=${profile} ${command.join(' ')}`);
   log.blank();

@@ -4,6 +4,7 @@ import { t } from '../ui/i18n.js';
 import { banner, log, outro } from '../ui/output.js';
 import { select } from '../ui/prompts.js';
 import { assumeCommand } from './assume.js';
+import { cleanCommand } from './clean.js';
 import { consoleCommand } from './console.js';
 import { doctorCommand } from './doctor.js';
 import { loginCommand } from './login.js';
@@ -29,6 +30,7 @@ type MenuAction =
   | 'use'
   | 'profiles'
   | 'region'
+  | 'clean'
   | 'doctor'
   | 'update'
   | 'exit';
@@ -49,6 +51,7 @@ export async function menuCommand(): Promise<void> {
       { name: `${pc.bold('use')}       ${pc.dim(t('— switch the active profile'))}`, value: 'use' },
       { name: `${pc.bold('profiles')}  ${pc.dim(t('— add / edit / remove / list'))}`, value: 'profiles' },
       { name: `${pc.bold('region')}    ${pc.dim(t('— set a profile region'))}`, value: 'region' },
+      { name: `${pc.bold('clean')}     ${pc.dim(t('— remove expired sessions'))}`, value: 'clean' },
       { name: `${pc.bold('doctor')}    ${pc.dim(t('— check your AWS setup'))}`, value: 'doctor' },
       { name: `${pc.bold('update')}    ${pc.dim(t('— update to latest version'))}`, value: 'update' },
       { name: pc.dim(t('exit')), value: 'exit' },
@@ -77,6 +80,8 @@ export async function menuCommand(): Promise<void> {
       return profileMenuCommand();
     case 'region':
       return regionCommand();
+    case 'clean':
+      return cleanCommand();
     case 'doctor':
       return doctorCommand();
     case 'update':

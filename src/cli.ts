@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { assumeCommand } from './commands/assume.js';
+import { cleanCommand } from './commands/clean.js';
 import { consoleCommand } from './commands/console.js';
 import { doctorCommand } from './commands/doctor.js';
 import { execCommand } from './commands/exec.js';
@@ -122,6 +123,12 @@ program
   .argument('[profile]', t('the profile'))
   .argument('[region]', t('the region, e.g. us-east-1'))
   .action((profileArg, regionArg) => regionCommand({ profile: profileArg, region: regionArg }));
+
+program
+  .command('clean')
+  .description(t('Remove expired temporary session profiles from ~/.aws'))
+  .option('-y, --yes', t('remove the expired ones without asking (for automation)'))
+  .action(cleanCommand);
 
 program.command('doctor').description(t('Check your AWS setup (files, clock skew, profiles)')).action(doctorCommand);
 

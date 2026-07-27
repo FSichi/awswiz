@@ -244,6 +244,35 @@ export const MESSAGES_ES: Record<string, string> = {
   '(AWS_PROFILE not set)': '(AWS_PROFILE sin setear)',
   '— sessions, expirations, active profile': '— sesiones, vencimientos, perfil activo',
 
+  // whoami session line
+  'Session': 'Sesión',
+
+  // clean
+  'Remove expired temporary session profiles from ~/.aws':
+    'Borrar de ~/.aws los perfiles de sesión temporal vencidos',
+  'remove the expired ones without asking (for automation)':
+    'borrar los vencidos sin preguntar (para automatización)',
+  'Nothing to clean — all {n} session(s) are still valid.':
+    'Nada para limpiar — las {n} sesión(es) siguen válidas.',
+  'Nothing to clean — no temporary session profiles found.':
+    'Nada para limpiar — no hay perfiles de sesión temporal.',
+  'Nothing to clean — no expired sessions found.':
+    'Nada para limpiar — no hay sesiones vencidas.',
+  '{n} session(s) have no recorded expiry; run "awswiz clean" to review them.':
+    '{n} sesión(es) no tienen vencimiento registrado; corré "awswiz clean" para revisarlas.',
+  'Removed {n} expired session profile(s).': 'Borré {n} perfil(es) de sesión vencido(s).',
+  'no expiry recorded — may still work': 'sin vencimiento registrado — puede seguir sirviendo',
+  'Which session profiles should be removed from ~/.aws?':
+    '¿Qué perfiles de sesión borro de ~/.aws?',
+  'Nothing selected.': 'No seleccionaste nada.',
+  'Keeping {n} valid session(s): {names}': 'Conservo {n} sesión(es) válida(s): {names}',
+  'Remove {n} profile(s)? This edits ~/.aws and cannot be undone.':
+    '¿Borrar {n} perfil(es)? Esto edita ~/.aws y no se puede deshacer.',
+  'Removed {n} session profile(s).': 'Borré {n} perfil(es) de sesión.',
+  'Start a fresh one with "awswiz mfa" whenever you need it.':
+    'Creá una nueva con "awswiz mfa" cuando la necesites.',
+  '— remove expired sessions': '— borrar sesiones vencidas',
+
   // exec
   "Run a command with a profile's credentials (sets AWS_PROFILE)":
     'Correr un comando con las credenciales de un perfil (setea AWS_PROFILE)',
@@ -254,6 +283,10 @@ export const MESSAGES_ES: Record<string, string> = {
   'The "{profile}" session is expired — the command will likely fail.':
     'La sesión de "{profile}" está vencida — el comando probablemente falle.',
   'Renew it first: awswiz mfa -p {base}': 'Renovala primero: awswiz mfa -p {base}',
+  'The "{profile}" session expired.': 'La sesión de "{profile}" venció.',
+  'Renew it now with MFA?': '¿La renovamos ahora con MFA?',
+  'Continuing with the expired session — the command will likely fail.':
+    'Sigo con la sesión vencida — el comando probablemente falle.',
   'Could not run "{cmd}": {err}': 'No se pudo ejecutar "{cmd}": {err}',
 
   // console

@@ -27,7 +27,7 @@ Run `awswiz` on its own (in a terminal) to open an interactive menu. Or call any
 | Command | What it does |
 |---|---|
 | `awswiz status` | Which sessions are alive and when do they expire? Your daily "am I still logged in?". |
-| `awswiz whoami` | Which account, role and profile am I using right now? |
+| `awswiz whoami` | Which account, role and profile am I using right now — and how long do these credentials last? |
 | `awswiz mfa` | Start an MFA session — auto-discovers your device, creates a temporary `<profile>-mfa` profile. |
 | `awswiz assume` | Assume an IAM role (cross-account), with MFA, and save the temporary credentials. |
 | `awswiz login` | Sign in to IAM Identity Center (SSO) via the browser device flow — then verifies it really worked. |
@@ -36,6 +36,7 @@ Run `awswiz` on its own (in a terminal) to open an interactive menu. Or call any
 | `awswiz use` | Switch the active profile (prints the right export line, or writes `[default]`). |
 | `awswiz region` | Set the default region for a profile. |
 | `awswiz profile` | Manage profiles: `list`, `add` (masked secret input), `edit`, `remove`. |
+| `awswiz clean` | Remove expired temporary session profiles that piled up in `~/.aws`. |
 | `awswiz doctor` | Check your setup: `~/.aws` files, profiles, and clock skew (the silent MFA killer). |
 | `awswiz update` | Update awswiz to the latest version. |
 
@@ -58,7 +59,11 @@ Sessions created by awswiz record their expiration (`aws_session_expiration`) so
 
 ### `awswiz exec`
 
-Run one command with a profile's credentials — no shell exports, no `[default]` rewriting: `awswiz exec -p horsego-mfa -- aws s3 ls`. Everything after `--` is passed through untouched. Warns upfront if the session is already expired.
+Run one command with a profile's credentials — no shell exports, no `[default]` rewriting: `awswiz exec -p horsego-mfa -- aws s3 ls`. Everything after `--` is passed through untouched. If the session has already expired, it offers to **renew it with MFA right there** instead of letting the command fail.
+
+### `awswiz clean`
+
+Temporary sessions accumulate: `prod-mfa`, `admin-role`, that account you touched once in March. `clean` lists the dead ones and removes them from `~/.aws` — profiles with long-lived keys, SSO or role configuration are never offered. `--yes` removes only the provably expired ones, so it's safe in scripts.
 
 ### `awswiz console`
 
