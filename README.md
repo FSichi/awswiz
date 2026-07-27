@@ -79,7 +79,20 @@ Assume a role in another account using a source profile's credentials. Prompts f
 
 ### `awswiz login` (SSO)
 
-Picks the SSO profile straight from your config — resolving the modern `[sso-session]` sections, so you never type the start URL — and runs the IAM Identity Center device-authorization flow: your browser opens, you approve, done. The token is cached **exactly where the SDK and the `aws` CLI look for it** (session-name key for modern configs, start-URL key for legacy ones), so everything else just works afterwards. And it doesn't merely claim success: it verifies the profile resolves credentials via STS and shows you the account you landed in.
+Picks the SSO profile straight from your config — resolving the modern `[sso-session]` sections, so you never type the start URL. Then it takes the least intrusive path available:
+
+1. **Still signed in?** Nothing happens — no browser, no prompts.
+2. **Expired but refreshable?** The session renews silently in the background.
+3. **Needs a real sign-in?** Your browser opens straight at Identity Center (authorization code + PKCE, the same flow the modern `aws` CLI uses) — no code to type, and the client registration is cached and reused, so AWS stops asking you to authorize the app on every login.
+4. **Redirect flow unavailable?** Falls back to the device-code flow automatically (`--device-code` forces it).
+
+The token is cached **exactly where the SDK and the `aws` CLI look for it** (session-name key for modern configs, start-URL key for legacy ones), together with the refresh token, so everything else just works afterwards. And it doesn't merely claim success: it verifies the profile resolves credentials via STS and shows you the account you landed in.
+
+```bash
+awswiz login                 # pick a profile, sign in if needed
+awswiz login -p prod         # straight to a profile
+awswiz login -p prod --force # sign in again even if the session is valid
+```
 
 ### `awswiz use`
 

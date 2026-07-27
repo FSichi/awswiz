@@ -1,7 +1,7 @@
 import pc from 'picocolors';
 import { getConfigKeys, getSsoSessionKeys, listSsoProfiles } from '../core/aws-files.js';
 import { whoami } from '../core/identity.js';
-import { ssoDeviceLogin, type SsoLoginTarget } from '../core/sso.js';
+import { ssoLogin, type SsoLoginTarget } from '../core/sso.js';
 import { openBrowser } from '../core/util.js';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
@@ -12,6 +12,8 @@ export interface LoginOptions {
   profile?: string;
   startUrl?: string;
   region?: string;
+  force?: boolean;
+  deviceCode?: boolean;
 }
 
 /**
@@ -51,13 +53,13 @@ async function resolveTarget(profile: string): Promise<SsoLoginTarget> {
   });
 }
 
-/** Sign in to IAM Identity Center (SSO) via the device-authorization flow. */
+/** Sign in to IAM Identity Center (SSO). */
 export async function loginCommand(opts: LoginOptions = {}): Promise<void> {
   let profileName = opts.profile;
   let target: SsoLoginTarget | undefined;
 
   if (opts.startUrl) {
-    // Explicit URL: legacy-style login, no profile attached.
+    // Explicit URL: no profile attached.
     let region = opts.region;
     if (!region) {
       assertInteractive();
@@ -90,26 +92,41 @@ export async function loginCommand(opts: LoginOptions = {}): Promise<void> {
     if (profileName) target = await resolveTarget(profileName);
   }
 
-  const token = await ssoDeviceLogin({
+  const result = await ssoLogin({
     target: target!,
+    force: opts.force,
+    deviceCode: opts.deviceCode,
     onPrompt: ({ url, userCode }) => {
-      box(
-        [
-          t('Approve this sign-in in your browser:'),
-          '',
-          pc.bold(url),
-          '',
-          `${t('Verification code')}: ${pc.bold(userCode)}`,
-        ],
-        pc.bold('aws sso login'),
-      );
+      if (userCode) {
+        // Device-code fallback: the user has to confirm a code.
+        box(
+          [
+            t('Approve this sign-in in your browser:'),
+            '',
+            pc.bold(url),
+            '',
+            `${t('Verification code')}: ${pc.bold(userCode)}`,
+          ],
+          pc.bold('aws sso login'),
+        );
+      } else {
+        log.blank();
+        log.info(`  ${t('Opening your browser to sign in…')}`);
+        log.dim(`  ${t('(If it does not open, the sign-in link was printed by your browser handler.)')}`);
+      }
       openBrowser(url);
       log.dim(`  ${t('Waiting for you to approve…')}`);
     },
   });
 
   log.blank();
-  log.success(t('Signed in. Token valid until {time}.', { time: token.expiresAt.toLocaleString() }));
+  if (result.method === 'cached') {
+    log.success(t('Already signed in — valid until {time}.', { time: result.expiresAt.toLocaleString() }));
+  } else if (result.method === 'refreshed') {
+    log.success(t('Session renewed silently — valid until {time}.', { time: result.expiresAt.toLocaleString() }));
+  } else {
+    log.success(t('Signed in. Token valid until {time}.', { time: result.expiresAt.toLocaleString() }));
+  }
 
   // Don't just claim success — prove the profile actually resolves credentials now.
   if (profileName) {

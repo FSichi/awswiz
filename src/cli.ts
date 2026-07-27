@@ -105,6 +105,8 @@ program
   .option('-p, --profile <name>', t('an SSO profile to read the start URL from'))
   .option('--start-url <url>', t('the SSO start URL'))
   .option('--region <region>', t('the SSO region'))
+  .option('-f, --force', t('sign in again even if the session is still valid'))
+  .option('--device-code', t('use the device-code flow instead of the browser redirect'))
   .action(loginCommand);
 
 program
