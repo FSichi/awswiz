@@ -4,18 +4,43 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export interface BrowserCommand {
+  command: string;
+  args: string[];
+  /** Windows only: pass the command line through untouched (see below). */
+  verbatim: boolean;
+}
+
+/**
+ * How to hand a URL to the platform's browser.
+ *
+ * On Windows this goes through `cmd /c start`, and cmd.exe reads "&" as a
+ * command separator — so any URL with more than one query parameter is
+ * truncated at the first one unless it is escaped and passed verbatim. Sign-in
+ * URLs are exactly that shape, which is why this is worth a test.
+ */
+export function browserCommandFor(url: string, platform: NodeJS.Platform = process.platform): BrowserCommand {
+  if (platform === 'win32') {
+    return {
+      command: 'cmd',
+      args: ['/c', 'start', '""', '/b', url.replace(/&/g, '^&')],
+      verbatim: true,
+    };
+  }
+  return { command: platform === 'darwin' ? 'open' : 'xdg-open', args: [url], verbatim: false };
+}
+
 /** Best-effort: open a URL in the default browser, cross-platform. Never throws. */
 export function openBrowser(url: string): void {
   try {
-    const [command, args] =
-      process.platform === 'win32'
-        ? ['cmd', ['/c', 'start', '""', url]]
-        : process.platform === 'darwin'
-          ? ['open', [url]]
-          : ['xdg-open', [url]];
-    spawn(command, args, { stdio: 'ignore', detached: true }).unref();
+    const { command, args, verbatim } = browserCommandFor(url);
+    spawn(command, args, {
+      stdio: 'ignore',
+      detached: true,
+      windowsVerbatimArguments: verbatim,
+    }).unref();
   } catch {
-    // The caller always prints the URL too, so this is just a convenience.
+    // Callers print the URL too, so this is only a convenience.
   }
 }
 

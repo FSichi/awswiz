@@ -153,8 +153,8 @@ export const MESSAGES_ES: Record<string, string> = {
   'use the device-code flow instead of the browser redirect':
     'usar el flujo de código de dispositivo en vez del redirect del navegador',
   'Opening your browser to sign in…': 'Abriendo tu navegador para iniciar sesión…',
-  '(If it does not open, the sign-in link was printed by your browser handler.)':
-    '(Si no se abre, el enlace lo maneja tu navegador por defecto.)',
+  "If it doesn't open, paste this into your browser:":
+    'Si no se abre, pegá esto en tu navegador:',
   'Already signed in — valid until {time}.': 'Ya tenés sesión activa — válida hasta {time}.',
   'Session renewed silently — valid until {time}.':
     'Sesión renovada en silencio — válida hasta {time}.',

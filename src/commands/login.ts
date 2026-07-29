@@ -110,9 +110,14 @@ export async function loginCommand(opts: LoginOptions = {}): Promise<void> {
           pc.bold('aws sso login'),
         );
       } else {
+        // Always print the link: if the browser fails to open (or opens the
+        // wrong one), this is the only way out of the wait.
         log.blank();
         log.info(`  ${t('Opening your browser to sign in…')}`);
-        log.dim(`  ${t('(If it does not open, the sign-in link was printed by your browser handler.)')}`);
+        log.blank();
+        log.dim(`  ${t("If it doesn't open, paste this into your browser:")}`);
+        log.info(`  ${url}`);
+        log.blank();
       }
       openBrowser(url);
       log.dim(`  ${t('Waiting for you to approve…')}`);
