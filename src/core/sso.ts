@@ -118,11 +118,13 @@ const CALLBACK_HTML = (title: string, body: string) =>
  * Listen on a random loopback port and resolve with the authorization code AWS
  * redirects back with. The browser lands here, so no code typing is needed.
  */
-function startCallbackServer(state: string): Promise<{
+export interface CallbackServer {
   redirectUri: string;
   waitForCode: (timeoutMs: number) => Promise<string>;
   close: () => void;
-}> {
+}
+
+export function startCallbackServer(state: string): Promise<CallbackServer> {
   return new Promise((resolveServer, rejectServer) => {
     let resolveCode: (code: string) => void;
     let rejectCode: (err: Error) => void;
@@ -130,6 +132,12 @@ function startCallbackServer(state: string): Promise<{
       resolveCode = res;
       rejectCode = rej;
     });
+    // The redirect can land before waitForCode attaches its handler (or the
+    // caller may never attach one at all). Node treats that as an unhandled
+    // rejection and kills the process, so keep a no-op handler on the original;
+    // waitForCode still sees the rejection through its own reference.
+    codePromise.catch(() => {});
+    let timer: NodeJS.Timeout | undefined;
 
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
@@ -137,8 +145,12 @@ function startCallbackServer(state: string): Promise<{
       const returnedState = url.searchParams.get('state');
       const error = url.searchParams.get('error_description') ?? url.searchParams.get('error');
 
+      // Without this the browser holds the socket open (keep-alive) and the
+      // process refuses to exit long after the sign-in finished.
+      const headers = { 'content-type': 'text/html; charset=utf-8', connection: 'close' };
+
       const fail = (message: string) => {
-        res.writeHead(400, { 'content-type': 'text/html; charset=utf-8' });
+        res.writeHead(400, headers);
         res.end(CALLBACK_HTML('Sign-in failed', message));
         rejectCode(new Error(message));
       };
@@ -147,7 +159,7 @@ function startCallbackServer(state: string): Promise<{
       if (!code) return fail('No authorization code was returned.');
       if (returnedState !== state) return fail('State mismatch — the response did not match this request.');
 
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      res.writeHead(200, headers);
       res.end(CALLBACK_HTML('Signed in ✔', 'You can close this window and go back to the terminal.'));
       resolveCode(code);
     });
@@ -157,14 +169,28 @@ function startCallbackServer(state: string): Promise<{
       const { port } = server.address() as AddressInfo;
       resolveServer({
         redirectUri: `http://127.0.0.1:${port}/oauth/callback`,
+        // The losing side of the race must be cleaned up: a pending timer keeps
+        // Node's event loop alive, which left the terminal blocked for the full
+        // timeout after an otherwise successful sign-in.
         waitForCode: (timeoutMs) =>
           Promise.race([
             codePromise,
-            new Promise<string>((_, reject) =>
-              setTimeout(() => reject(new Error(t('Timed out waiting for the browser sign-in.'))), timeoutMs),
-            ),
-          ]),
-        close: () => server.close(),
+            new Promise<string>((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error(t('Timed out waiting for the browser sign-in.'))),
+                timeoutMs,
+              );
+            }),
+          ]).finally(() => {
+            if (timer) clearTimeout(timer);
+          }),
+        close: () => {
+          if (timer) clearTimeout(timer);
+          // Sockets already established survive server.close(), so drop them
+          // explicitly — otherwise the event loop stays alive.
+          server.closeAllConnections?.();
+          server.close();
+        },
       });
     });
   });
