@@ -1,8 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { startCallbackServer } from '../src/core/sso.js';
-
-const pendingTimers = () =>
-  process.getActiveResourcesInfo().filter((resource) => resource === 'Timeout').length;
 
 describe('sso callback server', () => {
   it('returns the authorization code the browser redirects with', async () => {
@@ -19,16 +16,29 @@ describe('sso callback server', () => {
 
   // The 0.3.2 regression: the sign-in succeeded but the losing setTimeout of the
   // Promise.race stayed pending, so the process sat there for the full timeout.
-  it('leaves no pending timer behind once the code arrives', async () => {
-    const before = pendingTimers();
-    const server = await startCallbackServer('st4te');
-    const waiting = server.waitForCode(120_000);
+  it('clears the sign-in timeout once the code arrives', async () => {
+    const setSpy = vi.spyOn(globalThis, 'setTimeout');
+    const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
+    try {
+      const server = await startCallbackServer('st4te');
+      const waiting = server.waitForCode(120_000);
 
-    await (await fetch(`${server.redirectUri}?code=abc123&state=st4te`)).text();
-    await waiting;
-    server.close();
+      // Identify the timeout this sign-in armed, ignoring any other timer around.
+      const index = setSpy.mock.calls.findIndex(([, delay]) => delay === 120_000);
+      expect(index).toBeGreaterThanOrEqual(0);
+      const handle = setSpy.mock.results[index]!.value;
 
-    expect(pendingTimers()).toBe(before);
+      await (await fetch(`${server.redirectUri}?code=abc123&state=st4te`)).text();
+      await waiting;
+
+      // Asserted before close(), which clears it too: settling the race must be
+      // enough on its own, since close() is not guaranteed to run on every path.
+      expect(clearSpy).toHaveBeenCalledWith(handle);
+      server.close();
+    } finally {
+      setSpy.mockRestore();
+      clearSpy.mockRestore();
+    }
   });
 
   it('rejects a mismatched state instead of accepting the code', async () => {
