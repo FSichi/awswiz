@@ -36,8 +36,6 @@ export const MESSAGES_ES: Record<string, string> = {
   'Region': 'Región',
   'Could not resolve credentials for profile "{profile}".':
     'No se pudieron resolver las credenciales del perfil "{profile}".',
-  'Check the profile exists and its keys are valid (awswiz doctor coming soon).':
-    'Revisá que el perfil exista y sus claves sean válidas (awswiz doctor pronto).',
 
   // mfa
   'Which profile do you want an MFA session for?': '¿Para qué perfil querés una sesión MFA?',
@@ -130,9 +128,6 @@ export const MESSAGES_ES: Record<string, string> = {
   'Role assumed': 'Rol asumido',
 
   // login (SSO)
-  'Profile "{profile}" has no sso_start_url.': 'El perfil "{profile}" no tiene sso_start_url.',
-  'Add it with "awswiz profile add" (SSO), or pass --start-url.':
-    'Agregalo con "awswiz profile add" (SSO), o pasá --start-url.',
   'The sso-session "{session}" was not found in ~/.aws/config.':
     'No se encontró la sso-session "{session}" en ~/.aws/config.',
   'The sso-session "{session}" has no sso_start_url.':
@@ -280,9 +275,6 @@ export const MESSAGES_ES: Record<string, string> = {
   'No command given.': 'No indicaste un comando.',
   'Example: awswiz exec -p prod -- aws s3 ls': 'Ejemplo: awswiz exec -p prod -- aws s3 ls',
   'Which profile should the command run with?': '¿Con qué perfil corre el comando?',
-  'The "{profile}" session is expired — the command will likely fail.':
-    'La sesión de "{profile}" está vencida — el comando probablemente falle.',
-  'Renew it first: awswiz mfa -p {base}': 'Renovala primero: awswiz mfa -p {base}',
   'The "{profile}" session expired.': 'La sesión de "{profile}" venció.',
   'Renew it now with MFA?': '¿La renovamos ahora con MFA?',
   'Continuing with the expired session — the command will likely fail.':
@@ -352,4 +344,51 @@ export const MESSAGES_ES: Record<string, string> = {
   'the region, e.g. us-east-1': 'la región, ej. us-east-1',
   'Check your AWS setup (files, clock skew, profiles)':
     'Chequear tu configuración de AWS (archivos, desfase de reloj, perfiles)',
+
+  // ── Audit fixes: session guards, validation, JSON output ───────────────────
+  'See your profiles with: awswiz profile list': 'Mirá tus perfiles con: awswiz profile list',
+  'That profile has its own credentials — pick another name.':
+    'Ese perfil tiene sus propias credenciales — elegí otro nombre.',
+  'Nothing changed.': 'No se cambió nada.',
+  'Sign in first: awswiz login -p {profile}': 'Iniciá sesión primero: awswiz login -p {profile}',
+  'If the role needs MFA, assume it first: awswiz assume -p {profile}':
+    'Si el rol pide MFA, asumilo primero: awswiz assume -p {profile}',
+  'Could not reach the AWS sign-in service: {message}':
+    'No se pudo contactar el servicio de inicio de sesión de AWS: {message}',
+  'Check your connection and try again.': 'Revisá tu conexión y probá de nuevo.',
+  'awswiz doctor': 'awswiz doctor',
+  'The "{profile}" session is expired, so the command would fail.':
+    'La sesión "{profile}" está vencida, así que el comando fallaría.',
+  'Renew it first: {cmd}': 'Renovala primero: {cmd}',
+  'Sign in again now?': '¿Iniciar sesión de nuevo ahora?',
+  'Continue anyway?': '¿Continuar igual?',
+  'Is it installed and on your PATH?': '¿Está instalado y en tu PATH?',
+  '"{profile}" is already a temporary session.': '"{profile}" ya es una sesión temporal.',
+  'Start the MFA session from its base profile (the one with long-lived keys).':
+    'Iniciá la sesión MFA desde su perfil base (el que tiene las claves de larga duración).',
+  '"{region}" is not a region name.': '"{region}" no es un nombre de región.',
+  'Regions look like us-east-1, eu-west-2 or us-gov-west-1.':
+    'Las regiones son como us-east-1, eu-west-2 o us-gov-west-1.',
+  'signed in — renews automatically': 'sesión iniciada — se renueva sola',
+  'You already have the latest version ({version}).': 'Ya tenés la última versión ({version}).',
+  'The keys that were only in default are saved as profile "{backup}".':
+    'Las claves que solo estaban en default quedaron guardadas como el perfil "{backup}".',
+  '"{profile}" is an existing {kind} profile — temporary credentials would replace it.':
+    '"{profile}" es un perfil {kind} existente — las credenciales temporales lo reemplazarían.',
+  'Choose another profile name with --target.': 'Elegí otro nombre de perfil con --target.',
+  '"{profile}" takes its credentials from default, so it cannot become default.':
+    '"{profile}" toma sus credenciales de default, así que no puede pasar a ser default.',
+  'Use it through AWS_PROFILE instead: awswiz use {profile}': 'Usalo con AWS_PROFILE: awswiz use {profile}',
+  'Check the profile exists and its keys are valid — "awswiz doctor" can help.':
+    'Verificá que el perfil exista y que sus claves sean válidas — "awswiz doctor" puede ayudar.',
+  'awswiz {latest} is available (you have {current}).':
+    'Hay una versión nueva de awswiz: {latest} (tenés la {current}).',
+  'Update with: awswiz update': 'Actualizá con: awswiz update',
+  '--duration must be whole seconds between 900 and 129600 (got "{value}").':
+    '--duration tiene que ser segundos enteros entre 900 y 129600 (llegó "{value}").',
+  'e.g. --duration 3600 for one hour.': 'ej. --duration 3600 para una hora.',
+  'The MFA code must be the 6 digits your app shows (got "{value}").':
+    'El código MFA tiene que ser los 6 dígitos que muestra tu app (llegó "{value}").',
+  'print machine-readable output (no secrets) for scripts and agents':
+    'salida para máquinas (sin secretos), para scripts y agentes',
 };
