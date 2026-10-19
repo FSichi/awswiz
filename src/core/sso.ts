@@ -1,15 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
-import {
-  CreateTokenCommand,
-  RegisterClientCommand,
-  SSOOIDCClient,
-  StartDeviceAuthorizationCommand,
-} from '@aws-sdk/client-sso-oidc';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
 import { sleep } from './util.js';
@@ -79,14 +73,39 @@ export function readSsoTokenExpiry(keySource: string): Date | null {
   return parseDate(readCache(keySource)?.expiresAt);
 }
 
-function writeCache(target: SsoLoginTarget, data: Omit<CachedSso, 'startUrl' | 'region'>): void {
+export type SsoSessionState = 'valid' | 'refreshable' | 'expired' | 'missing';
+
+/**
+ * Whether an SSO session can still produce credentials. An expired access token
+ * is not the end: with a refresh token and a live client registration the SDK
+ * renews it silently, the way the aws CLI does — only without both is it dead.
+ */
+export function ssoSessionState(keySource: string, now = Date.now()): SsoSessionState {
+  const cache = readCache(keySource);
+  const expiresAt = parseDate(cache?.expiresAt);
+  if (!cache?.accessToken || !expiresAt) return 'missing';
+  if (expiresAt.getTime() > now) return 'valid';
+  return cache.refreshToken && reusableRegistration(cache, now) ? 'refreshable' : 'expired';
+}
+
+/**
+ * The cache holds the access token, the refresh token and the client secret, so
+ * it is private to the user — 0700 folder, 0600 file — the way the aws CLI keeps
+ * it. Written world-readable, any account on the machine could sign in as you.
+ */
+export function writeCache(target: SsoLoginTarget, data: Omit<CachedSso, 'startUrl' | 'region'>): void {
   const dir = join(homedir(), '.aws', 'sso', 'cache');
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    ssoCachePath(ssoCacheKeySource(target)),
-    JSON.stringify({ startUrl: target.startUrl, region: target.region, ...data }, null, 2),
-    'utf8',
-  );
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const path = ssoCachePath(ssoCacheKeySource(target));
+  writeFileSync(path, JSON.stringify({ startUrl: target.startUrl, region: target.region, ...data }, null, 2), {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
+  try {
+    chmodSync(path, 0o600); // `mode` only applies to new files; tighten an old one too
+  } catch {
+    // no-op on Windows
+  }
 }
 
 /**
@@ -94,11 +113,14 @@ function writeCache(target: SsoLoginTarget, data: Omit<CachedSso, 'startUrl' | '
  * stops Identity Center from asking for consent on every single login: a fresh
  * RegisterClient looks like a brand-new application to AWS.
  */
-function reusableRegistration(cache: CachedSso | null): { clientId: string; clientSecret: string } | null {
+function reusableRegistration(
+  cache: CachedSso | null,
+  now = Date.now(),
+): { clientId: string; clientSecret: string } | null {
   if (!cache?.clientId || !cache.clientSecret) return null;
   const expiry = parseDate(cache.registrationExpiresAt);
   // Keep a minute of margin; treat "no expiry recorded" as unusable.
-  if (!expiry || expiry.getTime() - 60_000 < Date.now()) return null;
+  if (!expiry || expiry.getTime() - 60_000 < now) return null;
   return { clientId: cache.clientId, clientSecret: cache.clientSecret };
 }
 
@@ -224,17 +246,20 @@ export interface SsoLoginOptions {
  */
 export async function ssoLogin(opts: SsoLoginOptions): Promise<SsoLoginResult> {
   const { target } = opts;
-  const client = new SSOOIDCClient({ region: target.region });
   const cache = readCache(ssoCacheKeySource(target));
   const registration = reusableRegistration(cache);
 
-  // 1. Still signed in? Don't touch the browser.
+  // 1. Still signed in? Don't touch the browser — or even load the SDK.
   if (!opts.force) {
     const expiresAt = parseDate(cache?.expiresAt);
     if (cache?.accessToken && expiresAt && expiresAt.getTime() - 60_000 > Date.now()) {
       return { accessToken: cache.accessToken, expiresAt, method: 'cached' };
     }
   }
+
+  const { CreateTokenCommand, RegisterClientCommand, SSOOIDCClient, StartDeviceAuthorizationCommand } =
+    await import('@aws-sdk/client-sso-oidc');
+  const client = new SSOOIDCClient({ region: target.region });
 
   // 2. Expired but refreshable → renew silently, exactly like the aws CLI does.
   if (!opts.force && registration && cache?.refreshToken) {
@@ -270,6 +295,9 @@ export async function ssoLogin(opts: SsoLoginOptions): Promise<SsoLoginResult> {
   // 3. Browser redirect (PKCE) — the smooth path, no code to type.
   if (!useDeviceCode) {
     let callback: Awaited<ReturnType<typeof startCallbackServer>> | undefined;
+    // Once the browser is open, the user is mid-sign-in: a denial or a timeout
+    // is their answer, not a reason to start a second, device-code sign-in.
+    let prompted = false;
     try {
       const state = base64Url(randomBytes(16));
       const verifier = base64Url(randomBytes(32));
@@ -298,6 +326,7 @@ export async function ssoLogin(opts: SsoLoginOptions): Promise<SsoLoginResult> {
       authorizeUrl.searchParams.set('scopes', scopes.join(','));
 
       opts.onPrompt({ url: authorizeUrl.toString() });
+      prompted = true;
 
       const code = await callback.waitForCode(180_000);
       const tok = await client.send(
@@ -324,9 +353,10 @@ export async function ssoLogin(opts: SsoLoginOptions): Promise<SsoLoginResult> {
       });
       return { accessToken: tok.accessToken ?? '', expiresAt, method: 'browser' };
     } catch (err) {
+      if ((err as Error).name === 'AwswizError') throw err;
+      if (prompted) throw friendly(err);
       // Older Identity Center setups may not allow the redirect flow — the
       // device code path below still works everywhere.
-      if ((err as Error).name === 'AwswizError') throw err;
     } finally {
       callback?.close();
     }
