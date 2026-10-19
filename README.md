@@ -142,6 +142,18 @@ With `--json`, stdout carries only the payload — a failure too, as `{"error": 
 
 The repo ships an [`AGENTS.md`](AGENTS.md) with the full non-interactive matrix and the security rules agents should follow (never pass secrets as flags, never log sign-in URLs). awswiz deliberately does **not** accept access keys as CLI flags — they would leak into shell history.
 
+## Troubleshooting
+
+### Windows: `NVM blocked package-manager execution because a delegated command could not be trusted` (NVM4306)
+
+NVM for Windows 2.x keeps a trust record of every global command and refuses one whose launcher changed since it was trusted. Updating awswiz rewrites `awswiz.cmd`, so right after `awswiz update` (or `npm i -g @fsichi/awswiz`) the next `awswiz` can be blocked with *"delegated script changed since it was trusted"*. That is NVM protecting you, not a broken install. NVM may re-trust the command by itself shortly after; if it doesn't, run:
+
+```bash
+nvm reshim
+```
+
+`awswiz update` reminds you of this when it detects an NVM for Windows 2.x install.
+
 ## Language
 
 awswiz follows your system locale (English or Spanish). Force it for one run with the `AWSWIZ_LANG` environment variable (`AWSWIZ_LANG=es awswiz whoami`).

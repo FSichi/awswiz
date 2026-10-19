@@ -23,6 +23,18 @@ export function detectPackageManager(installPath: string): PackageManager {
   return 'npm';
 }
 
+/**
+ * NVM for Windows 2.x keeps a trust record of every global command and blocks
+ * one whose launcher changed since it was trusted — which an update does
+ * ("delegated script changed since it was trusted", NVM4306) — until
+ * `nvm reshim`. Its layout puts globals under …\nvm\installs\v<version>\; the
+ * 1.x layout (…\nvm\v<version>\) has no such check and no reshim command.
+ * Exported for unit tests.
+ */
+export function needsNvmReshim(installPath: string, platform: NodeJS.Platform = process.platform): boolean {
+  return platform === 'win32' && /[\\/]nvm[\\/]installs[\\/]v\d/i.test(installPath);
+}
+
 function getUpdateCommand(pm: PackageManager): string {
   switch (pm) {
     case 'npm':
@@ -97,6 +109,10 @@ export async function updateCommand(opts: UpdateOptions = {}): Promise<void> {
     suppressUpdateNotice();
     log.success(t('@fsichi/awswiz updated successfully! 🎉'));
     log.dim(t('Run "awswiz --version" to verify.'));
+    if (needsNvmReshim(fileURLToPath(import.meta.url))) {
+      log.warn(t('NVM for Windows may block the updated command until it trusts it again.'));
+      log.dim(`  ${t('If it says "delegated script changed since it was trusted", run: nvm reshim')}`);
+    }
   } else {
     throw new AwswizError(t('Update failed.'), {
       hint: result.stderr || t('Try running the command manually: {cmd}', { cmd }),

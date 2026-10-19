@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { consoleEndpoints } from '../src/commands/console.js';
-import { detectPackageManager } from '../src/commands/update.js';
+import { detectPackageManager, needsNvmReshim } from '../src/commands/update.js';
 import { compareVersions, isCheckDue, pendingUpdate } from '../src/core/update-checker.js';
 import { isAwsRegion, parseDuration, parseMfaCode } from '../src/core/util.js';
 
@@ -71,6 +71,25 @@ describe('update check', () => {
     expect(isCheckDue(null, day)).toBe(true);
     expect(isCheckDue({ lastCheck: 1 }, day)).toBe(false);
     expect(isCheckDue({ lastCheck: 0 }, day)).toBe(true);
+  });
+});
+
+// NVM for Windows 2.x blocked awswiz right after `awswiz update` (NVM4306)
+// until `nvm reshim`; the update says so only where that can happen.
+describe('needsNvmReshim', () => {
+  const nvm2 = 'C:\\Users\\me\\AppData\\Local\\Author Software\\nvm\\installs\\v24.21.0\\node_modules\\@fsichi\\awswiz\\dist\\main.js';
+
+  it('flags an NVM for Windows 2.x install', () => {
+    expect(needsNvmReshim(nvm2, 'win32')).toBe(true);
+  });
+
+  it.each([
+    ['nvm-windows 1.x (no reshim)', 'C:\\Users\\me\\AppData\\Roaming\\nvm\\v20.11.0\\node_modules\\@fsichi\\awswiz\\dist\\main.js', 'win32'],
+    ['a plain Node install', 'C:\\Program Files\\nodejs\\node_modules\\@fsichi\\awswiz\\dist\\main.js', 'win32'],
+    ['nvm on macOS/Linux', '/home/me/.nvm/versions/node/v24.0.0/lib/node_modules/@fsichi/awswiz/dist/main.js', 'linux'],
+    ['the same path off Windows', nvm2, 'linux'],
+  ] as const)('stays quiet for %s', (_label, path, platform) => {
+    expect(needsNvmReshim(path, platform)).toBe(false);
   });
 });
 

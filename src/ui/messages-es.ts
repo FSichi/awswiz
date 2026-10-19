@@ -371,6 +371,10 @@ export const MESSAGES_ES: Record<string, string> = {
     'Las regiones son como us-east-1, eu-west-2 o us-gov-west-1.',
   'signed in — renews automatically': 'sesión iniciada — se renueva sola',
   'You already have the latest version ({version}).': 'Ya tenés la última versión ({version}).',
+  'NVM for Windows may block the updated command until it trusts it again.':
+    'NVM for Windows puede bloquear el comando actualizado hasta volver a confiar en él.',
+  'If it says "delegated script changed since it was trusted", run: nvm reshim':
+    'Si dice "delegated script changed since it was trusted", corré: nvm reshim',
   'The keys that were only in default are saved as profile "{backup}".':
     'Las claves que solo estaban en default quedaron guardadas como el perfil "{backup}".',
   '"{profile}" is an existing {kind} profile — temporary credentials would replace it.':
