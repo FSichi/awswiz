@@ -1,7 +1,6 @@
-import { GetFederationTokenCommand, STSClient } from '@aws-sdk/client-sts';
-import { fromIni } from '@aws-sdk/credential-providers';
 import pc from 'picocolors';
 import { getProfile, listProfiles, resolveRegion } from '../core/aws-files.js';
+import { profileCredentials, stsClient, stsCommands } from '../core/sdk.js';
 import { openBrowser } from '../core/util.js';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
@@ -46,7 +45,19 @@ async function federableCredentials(profileName: string, region: string): Promis
   }
 
   if (info.kind === 'sso' || info.kind === 'role') {
-    const resolved = await fromIni({ profile: profileName })();
+    let resolved: { accessKeyId: string; secretAccessKey: string; sessionToken?: string };
+    try {
+      resolved = await (await profileCredentials(profileName))();
+    } catch (err) {
+      // A role that needs MFA (or an SSO profile signed out) surfaced as a raw SDK stack trace.
+      throw new AwswizError(t('Could not resolve credentials for profile "{profile}".', { profile: profileName }), {
+        hint: `${
+          info.kind === 'sso'
+            ? t('Sign in first: awswiz login -p {profile}', { profile: profileName })
+            : t('If the role needs MFA, assume it first: awswiz assume -p {profile}', { profile: profileName })
+        }  (${(err as Error).name})`,
+      });
+    }
     if (!resolved.sessionToken) {
       throw new AwswizError(t('Could not resolve credentials for profile "{profile}".', { profile: profileName }));
     }
@@ -58,7 +69,7 @@ async function federableCredentials(profileName: string, region: string): Promis
   }
 
   // Long-lived keys → mint a federation token.
-  const sts = new STSClient({ region, credentials: fromIni({ profile: profileName }) });
+  const [{ GetFederationTokenCommand }, sts] = await Promise.all([stsCommands(), stsClient(profileName, region)]);
   const out = await sts.send(
     new GetFederationTokenCommand({ Name: 'awswiz', Policy: FEDERATION_POLICY, DurationSeconds: 43200 }),
   );
@@ -67,6 +78,26 @@ async function federableCredentials(profileName: string, region: string): Promis
     throw new AwswizError(t('AWS returned an incomplete set of credentials.'));
   }
   return { accessKeyId: c.AccessKeyId, secretAccessKey: c.SecretAccessKey, sessionToken: c.SessionToken };
+}
+
+/**
+ * Where a region's console lives. China and GovCloud are separate partitions
+ * with their own sign-in endpoints; the global one rejects their credentials.
+ */
+export function consoleEndpoints(region: string): { signin: string; console: string } {
+  if (region.startsWith('cn-')) {
+    return { signin: 'https://signin.amazonaws.cn', console: `https://console.amazonaws.cn/console/home?region=${region}` };
+  }
+  if (region.startsWith('us-gov-')) {
+    return {
+      signin: 'https://signin.amazonaws-us-gov.com',
+      console: `https://console.amazonaws-us-gov.com/console/home?region=${region}`,
+    };
+  }
+  return {
+    signin: 'https://signin.aws.amazon.com',
+    console: `https://${region}.console.aws.amazon.com/console/home?region=${region}`,
+  };
 }
 
 /** Open the AWS web console in the browser, already signed in with a profile. */
@@ -91,7 +122,15 @@ export async function consoleCommand(opts: ConsoleOptions = {}): Promise<void> {
         sessionToken: creds.sessionToken,
       }),
     );
-    const response = await fetch(`https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${session}`);
+    const endpoints = consoleEndpoints(region);
+    const response = await fetch(`${endpoints.signin}/federation?Action=getSigninToken&Session=${session}`, {
+      // Without a limit a dead network left the spinner turning forever.
+      signal: AbortSignal.timeout(20_000),
+    }).catch((err: Error) => {
+      throw new AwswizError(t('Could not reach the AWS sign-in service: {message}', { message: err.message }), {
+        hint: t('Check your connection and try again.'),
+      });
+    });
     if (!response.ok) {
       throw new AwswizError(t('AWS rejected the federation request (HTTP {status}).', { status: response.status }), {
         hint: t('The credentials may be expired — renew the session and try again.'),
@@ -100,8 +139,8 @@ export async function consoleCommand(opts: ConsoleOptions = {}): Promise<void> {
     const { SigninToken } = (await response.json()) as { SigninToken?: string };
     if (!SigninToken) throw new AwswizError(t('AWS did not return a sign-in token.'));
 
-    const destination = encodeURIComponent(`https://${region}.console.aws.amazon.com/console/home?region=${region}`);
-    return `https://signin.aws.amazon.com/federation?Action=login&Issuer=awswiz&Destination=${destination}&SigninToken=${SigninToken}`;
+    const destination = encodeURIComponent(endpoints.console);
+    return `${endpoints.signin}/federation?Action=login&Issuer=awswiz&Destination=${destination}&SigninToken=${encodeURIComponent(SigninToken)}`;
   });
 
   if (opts.printUrl) {
