@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
+import { recordSsoSignIn } from './sso-sign-ins.js';
 import { sleep } from './util.js';
 
 export interface SsoLoginTarget {
@@ -73,7 +74,13 @@ export function readSsoTokenExpiry(keySource: string): Date | null {
   return parseDate(readCache(keySource)?.expiresAt);
 }
 
-export type SsoSessionState = 'valid' | 'refreshable' | 'expired' | 'missing';
+/**
+ * 'refreshable' is a guess: the access token expired, but a refresh token is
+ * there — the session may still be alive or may have ended long ago, and only
+ * Identity Center knows (see refreshSsoToken). 'unverified' means it was asked
+ * and did not answer.
+ */
+export type SsoSessionState = 'valid' | 'refreshable' | 'unverified' | 'expired' | 'missing';
 
 /**
  * Whether an SSO session can still produce credentials. An expired access token
@@ -86,6 +93,73 @@ export function ssoSessionState(keySource: string, now = Date.now()): SsoSession
   if (!cache?.accessToken || !expiresAt) return 'missing';
   if (expiresAt.getTime() > now) return 'valid';
   return cache.refreshToken && reusableRegistration(cache, now) ? 'refreshable' : 'expired';
+}
+
+/**
+ * True when the cached token can be renewed. Without a refresh token (a legacy,
+ * start-URL login) the access token itself lasts the whole Identity Center
+ * session, so its expiry IS the session's end.
+ */
+export function ssoTokenRenewable(keySource: string): boolean {
+  const cache = readCache(keySource);
+  return Boolean(cache?.refreshToken && reusableRegistration(cache));
+}
+
+/** The login target recorded in a cached token — enough to refresh it. */
+export function cachedSsoTarget(keySource: string, sessionName: string | null): SsoLoginTarget | null {
+  const cache = readCache(keySource);
+  if (!cache?.startUrl || !cache.region) return null;
+  return { startUrl: cache.startUrl, region: cache.region, sessionName, scopes: [] };
+}
+
+export type RefreshOutcome =
+  | { state: 'renewed'; accessToken: string; expiresAt: Date }
+  /** Identity Center refused the refresh token: the session it belonged to is over. */
+  | { state: 'ended' }
+  /** No answer (offline, a timeout, a 5xx): nothing can be said about the session. */
+  | { state: 'unverified' };
+
+/**
+ * Renew an expired SSO access token with its refresh token — what the SDK and
+ * the aws CLI do on the next call anyway. It is also the only way to learn
+ * whether the Identity Center session is still alive: AWS never says when the
+ * session ends (the duration is an admin setting, 8 h by default), it simply
+ * stops honouring the refresh token.
+ */
+export async function refreshSsoToken(target: SsoLoginTarget, timeoutMs = 8000): Promise<RefreshOutcome> {
+  const cache = readCache(ssoCacheKeySource(target));
+  const registration = reusableRegistration(cache);
+  if (!registration || !cache?.refreshToken) return { state: 'ended' };
+
+  const { CreateTokenCommand, SSOOIDCClient } = await import('@aws-sdk/client-sso-oidc');
+  const client = new SSOOIDCClient({ region: target.region });
+  try {
+    const renewed = await client.send(
+      new CreateTokenCommand({
+        clientId: registration.clientId,
+        clientSecret: registration.clientSecret,
+        grantType: 'refresh_token',
+        refreshToken: cache.refreshToken,
+      }),
+      { abortSignal: AbortSignal.timeout(timeoutMs) },
+    );
+    if (!renewed.accessToken) return { state: 'unverified' };
+    const expiresAt = new Date(Date.now() + (renewed.expiresIn ?? 3600) * 1000);
+    writeCache(target, {
+      accessToken: renewed.accessToken,
+      expiresAt: expiresAt.toISOString(),
+      refreshToken: renewed.refreshToken ?? cache.refreshToken,
+      clientId: registration.clientId,
+      clientSecret: registration.clientSecret,
+      registrationExpiresAt: cache.registrationExpiresAt,
+    });
+    return { state: 'renewed', accessToken: renewed.accessToken, expiresAt };
+  } catch (err) {
+    // A 4xx is Identity Center's answer (expired or revoked refresh token);
+    // anything else — no network, a timeout, a 5xx — is no answer at all.
+    const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    return status !== undefined && status >= 400 && status < 500 ? { state: 'ended' } : { state: 'unverified' };
+  }
 }
 
 /**
@@ -262,30 +336,11 @@ export async function ssoLogin(opts: SsoLoginOptions): Promise<SsoLoginResult> {
   const client = new SSOOIDCClient({ region: target.region });
 
   // 2. Expired but refreshable → renew silently, exactly like the aws CLI does.
+  // If Identity Center refuses (the session ended), fall through to a sign-in.
   if (!opts.force && registration && cache?.refreshToken) {
-    try {
-      const renewed = await client.send(
-        new CreateTokenCommand({
-          clientId: registration.clientId,
-          clientSecret: registration.clientSecret,
-          grantType: 'refresh_token',
-          refreshToken: cache.refreshToken,
-        }),
-      );
-      if (renewed.accessToken) {
-        const expiresAt = new Date(Date.now() + (renewed.expiresIn ?? 3600) * 1000);
-        writeCache(target, {
-          accessToken: renewed.accessToken,
-          expiresAt: expiresAt.toISOString(),
-          refreshToken: renewed.refreshToken ?? cache.refreshToken,
-          clientId: registration.clientId,
-          clientSecret: registration.clientSecret,
-          registrationExpiresAt: cache.registrationExpiresAt,
-        });
-        return { accessToken: renewed.accessToken, expiresAt, method: 'refreshed' };
-      }
-    } catch {
-      // Refresh tokens expire too — fall through to a full sign-in.
+    const renewed = await refreshSsoToken(target);
+    if (renewed.state === 'renewed') {
+      return { accessToken: renewed.accessToken, expiresAt: renewed.expiresAt, method: 'refreshed' };
     }
   }
 
@@ -351,6 +406,7 @@ export async function ssoLogin(opts: SsoLoginOptions): Promise<SsoLoginResult> {
           ? new Date(reg.clientSecretExpiresAt * 1000).toISOString()
           : undefined,
       });
+      recordSsoSignIn(ssoCacheKeySource(target));
       return { accessToken: tok.accessToken ?? '', expiresAt, method: 'browser' };
     } catch (err) {
       if ((err as Error).name === 'AwswizError') throw err;
@@ -421,6 +477,7 @@ export async function ssoLogin(opts: SsoLoginOptions): Promise<SsoLoginResult> {
         clientSecret: reg.clientSecret,
         registrationExpiresAt,
       });
+      recordSsoSignIn(ssoCacheKeySource(target));
       return { accessToken: tok.accessToken ?? '', expiresAt, method: 'device-code' };
     } catch (err) {
       const name = (err as Error).name;

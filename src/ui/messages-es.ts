@@ -233,8 +233,19 @@ export const MESSAGES_ES: Record<string, string> = {
   'expires in {rel}': 'vence en {rel}',
   'expired': 'vencida',
   'SSO sessions:': 'Sesiones SSO:',
-  'signed in — {rel} left': 'sesión activa — quedan {rel}',
+  'Checking your sessions…': 'Revisando tus sesiones…',
+  'signed in': 'sesión activa',
+  'started {ago} ago': 'iniciada hace {ago}',
+  'ends {clock} (in {rel})': 'termina {clock} (en {rel})',
+  'session ended': 'sesión terminada',
   'not signed in': 'sin sesión',
+  'could not reach AWS to check the session': 'no se pudo consultar a AWS para verificar la sesión',
+  'not checked (--offline)': 'sin verificar (--offline)',
+  'if it fails': 'si falla',
+  "AWS does not report when an SSO session ends. To see it, add your organization's session length to the [sso-session] section (e.g. awswiz_session_duration = 8h) and sign in with awswiz login.":
+    'AWS no informa cuándo termina una sesión SSO. Para verlo, agregá la duración que usa tu organización en la sección [sso-session] (ej. awswiz_session_duration = 8h) e iniciá sesión con awswiz login.',
+  'do not ask AWS whether expired SSO tokens can still renew':
+    'no consultar a AWS si los tokens SSO vencidos todavía se pueden renovar',
   'Active profile': 'Perfil activo',
   '(AWS_PROFILE not set)': '(AWS_PROFILE sin setear)',
   '— sessions, expirations, active profile': '— sesiones, vencimientos, perfil activo',
@@ -369,7 +380,6 @@ export const MESSAGES_ES: Record<string, string> = {
   '"{region}" is not a region name.': '"{region}" no es un nombre de región.',
   'Regions look like us-east-1, eu-west-2 or us-gov-west-1.':
     'Las regiones son como us-east-1, eu-west-2 o us-gov-west-1.',
-  'signed in — renews automatically': 'sesión iniciada — se renueva sola',
   'You already have the latest version ({version}).': 'Ya tenés la última versión ({version}).',
   'NVM for Windows may block the updated command until it trusts it again.':
     'NVM for Windows puede bloquear el comando actualizado hasta volver a confiar en él.',

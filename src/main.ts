@@ -47,7 +47,8 @@ program
   .command('status')
   .description(t('Show which sessions are alive and when they expire'))
   .option('--json', t('print machine-readable output (no secrets) for scripts and agents'))
-  .action(() => statusCommand());
+  .option('--offline', t('do not ask AWS whether expired SSO tokens can still renew'))
+  .action((opts: { offline?: boolean }) => statusCommand(opts));
 
 program
   .command('whoami')

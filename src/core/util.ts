@@ -78,6 +78,39 @@ export function openBrowser(url: string): void {
   }
 }
 
+/**
+ * An Identity Center session length as written in the config: "8h", "90m",
+ * "1d", "12h30m". Identity Center allows 15 minutes to 90 days; anything else
+ * (or unparseable) is null, so a typo never invents an expiry. In milliseconds.
+ */
+export function parseSessionDuration(value: string | undefined): number | null {
+  const text = value?.trim().toLowerCase().replace(/\s+/g, '') ?? '';
+  if (!/^(\d+[dhm])+$/.test(text)) return null;
+  const unit: Record<string, number> = { d: 86_400_000, h: 3_600_000, m: 60_000 };
+  let ms = 0;
+  for (const [, amount, u] of text.matchAll(/(\d+)([dhm])/g)) ms += Number(amount) * unit[u!]!;
+  return ms >= 15 * 60_000 && ms <= 90 * 86_400_000 ? ms : null;
+}
+
+/** "3h 10m" since a past date (the counterpart of formatRelative). */
+export function formatElapsed(date: Date, now = Date.now()): string {
+  const totalMin = Math.max(0, Math.round((now - date.getTime()) / 60000));
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
+  const m = totalMin % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+/** A clock time for a nearby moment: "21:24" today, the date too otherwise. */
+export function formatClock(date: Date, now = new Date()): string {
+  const sameDay = date.toDateString() === now.toDateString();
+  const time = { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const;
+  return sameDay
+    ? date.toLocaleTimeString(undefined, time)
+    : date.toLocaleString(undefined, { day: '2-digit', month: '2-digit', ...time });
+}
+
 /** Human-friendly "in 11h 59m" from a future date. */
 export function formatRelative(date: Date): string {
   const ms = date.getTime() - Date.now();

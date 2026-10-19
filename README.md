@@ -42,7 +42,7 @@ Run `awswiz` on its own (in a terminal) to open an interactive menu. Or call any
 
 ### `awswiz status`
 
-The command you run every morning. Shows each temporary session (MFA / assumed roles) with its remaining lifetime, each SSO session's token state, and the active profile — with the exact renewal command next to anything expired:
+The command you run every morning. Shows each temporary session (MFA / assumed roles) with its remaining lifetime, each SSO session — checked with Identity Center, with when you signed in and when it ends — and the active profile — with the exact renewal command next to anything expired:
 
 ```
 Temporary sessions:
@@ -50,14 +50,26 @@ Temporary sessions:
   codetria-mfa  ✖ expired   → awswiz mfa -p codetria
 
 SSO sessions:
-  boostivity    ✔ signed in — 6h 12m left
+  boostivity    ✔ signed in · started 2h 5m ago · ends ~21:24 (in 5h 55m)
+  legacy-sso    ✖ session ended   → awswiz login -p legacy-sso
 
 Active profile: default (AWS_PROFILE not set)
 ```
 
-Sessions created by awswiz record their expiration (`aws_session_expiration`) so status can tell you *before* AWS fails with a cryptic `ExpiredToken`. An SSO token that expired but still has a refresh token shows as signed in: the SDK renews it on its own, just like the `aws` CLI.
+Sessions created by awswiz record their expiration (`aws_session_expiration`) so status can tell you *before* AWS fails with a cryptic `ExpiredToken`. An SSO access token lasts one hour; the SDK renews it with its refresh token for as long as the Identity Center session lasts (an admin setting: 8 h by default, up to 90 days). AWS never says when that session ends, so when the token has expired `status` asks Identity Center by renewing it — exactly what the SDK would do on your next call: a session that still works shows as signed in, one that ended shows the `awswiz login` command, and with no network it says it could not check. `--offline` skips the check.
 
-`awswiz status --json` returns the same as data — each session's `expiresAt` and `state`, each SSO session's state, and the renewal command — **never a key or a token**, so scripts and agents can check a session without reading AWS's caches themselves. `awswiz whoami --json` does the same for the identity.
+To see when a session ends, `awswiz login` records when you signed in (`~/.config/awswiz/sso-sign-ins.json`, no secrets) and you add your organization's session length to the `[sso-session]` section (or the profile, for legacy start-URL profiles):
+
+```ini
+[sso-session boostivity]
+sso_start_url = https://example.awsapps.com/start
+sso_region = us-east-1
+awswiz_session_duration = 8h
+```
+
+`8h`, `12h30m` or `1d` work; the SDK and the `aws` CLI ignore the key. The end is an estimate (`~`) — an admin can change the length or revoke the session. A token without a refresh token (`aws sso login` with a legacy profile) lasts the whole session, so its end is shown exactly.
+
+`awswiz status --json` returns the same as data — each session's `expiresAt` and `state`, each SSO session's `state`, `signedInAt` and `sessionEndsAt` (with `sessionEndSource`: `token` exact, `config` estimated), and the renewal command — **never a key or a token**, so scripts and agents can check a session without reading AWS's caches themselves. `awswiz whoami --json` does the same for the identity.
 
 ### `awswiz exec`
 
@@ -120,9 +132,9 @@ Verifies your `~/.aws` files exist, counts your profiles, and — crucially — 
 | **MFA device discovery** | `@aws-sdk/client-iam` (`ListMFADevices`). |
 | **SSO** | `@aws-sdk/client-sso-oidc` — authorization code + PKCE in the browser (device code as fallback), token cached with the same keys the CLI uses. |
 | **Web console sign-in** | AWS sign-in federation endpoint — `GetFederationToken` for long-lived keys, direct temporary credentials for SSO/role profiles. |
-| **Session expiry** | `mfa`/`assume` record `aws_session_expiration` in the credentials file; `status` and `exec` read it. |
+| **Session expiry** | `mfa`/`assume` record `aws_session_expiration` in the credentials file; `status` and `exec` read it. An expired SSO token is checked with a refresh-token `CreateToken` call (Identity Center's only answer to "is this session alive?"). |
 
-No `aws` CLI is spawned or required. `~/.aws` files are written atomically (a crash never leaves a half-written credentials file, and a symlinked file stays a symlink); the credentials file and the SSO token cache are private (`0600`, folder `0700`) on Unix, and secrets are never logged. The AWS SDK is loaded only by the commands that call AWS, so `status`, `use` or `region` start in about a tenth of a second, and the package installs with no dependencies.
+No `aws` CLI is spawned or required. `~/.aws` files are written atomically (a crash never leaves a half-written credentials file, and a symlinked file stays a symlink); the credentials file and the SSO token cache are private (`0600`, folder `0700`) on Unix, and secrets are never logged. The AWS SDK is loaded only by the commands that call AWS, so `use`, `region` or `status` (unless it has to check an expired SSO token) start in about a tenth of a second, and the package installs with no dependencies.
 
 ## Non-interactive mode & AI agents
 
@@ -134,7 +146,7 @@ awswiz assume --profile prod --role arn:aws:iam::123456789012:role/Admin --code 
 awswiz exec -p prod -- aws s3 ls
 awswiz region prod eu-west-1
 awswiz use prod --default
-awswiz status --json         # read-only, always safe; no secrets
+awswiz status --json         # always safe; no secrets (may renew an expired SSO token, like the SDK)
 awswiz whoami -p prod --json
 ```
 

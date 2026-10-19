@@ -1,7 +1,7 @@
 import crossSpawn from 'cross-spawn';
 import pc from 'picocolors';
 import { getConfigKeys, getCredentialKeys, getProfile, listProfiles, parseSessionExpiration } from '../core/aws-files.js';
-import { ssoSessionState } from '../core/sso.js';
+import { cachedSsoTarget, refreshSsoToken, ssoSessionState } from '../core/sso.js';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
 import { log } from '../ui/output.js';
@@ -23,8 +23,15 @@ async function deadSession(profile: string): Promise<{ renew: string; mfaBase?: 
   }
   const cfg = await getConfigKeys(profile);
   const ssoKey = cfg.sso_session ?? cfg.sso_start_url;
-  if (ssoKey && ['expired', 'missing'].includes(ssoSessionState(ssoKey))) {
-    return { renew: `awswiz login -p ${profile}`, sso: true };
+  if (!ssoKey) return null;
+  const dead = { renew: `awswiz login -p ${profile}`, sso: true };
+  const state = ssoSessionState(ssoKey);
+  if (state === 'expired' || state === 'missing') return dead;
+  if (state === 'refreshable') {
+    // The token expired but may renew: ask Identity Center now rather than let
+    // the command find out halfway. Unreachable → let the command try.
+    const target = cachedSsoTarget(ssoKey, cfg.sso_session ?? null);
+    if (target && (await refreshSsoToken(target)).state === 'ended') return dead;
   }
   return null;
 }

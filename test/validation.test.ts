@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { consoleEndpoints } from '../src/commands/console.js';
 import { detectPackageManager, needsNvmReshim } from '../src/commands/update.js';
 import { compareVersions, isCheckDue, pendingUpdate } from '../src/core/update-checker.js';
-import { isAwsRegion, parseDuration, parseMfaCode } from '../src/core/util.js';
+import { formatElapsed, isAwsRegion, parseDuration, parseMfaCode, parseSessionDuration } from '../src/core/util.js';
 
 describe('parseDuration', () => {
   it('accepts whole seconds within the STS range', () => {
@@ -102,5 +102,33 @@ describe('detectPackageManager', () => {
     ['/home/me/.bun/install/global/node_modules/@fsichi/awswiz/dist/main.js', 'bun'],
   ])('%s → %s', (path, expected) => {
     expect(detectPackageManager(path)).toBe(expected);
+  });
+});
+
+describe('parseSessionDuration', () => {
+  const H = 3_600_000;
+  it('reads the lengths Identity Center allows', () => {
+    expect(parseSessionDuration('8h')).toBe(8 * H);
+    expect(parseSessionDuration(' 12h 30m ')).toBe(12.5 * H);
+    expect(parseSessionDuration('1d')).toBe(24 * H);
+    expect(parseSessionDuration('90d')).toBe(90 * 24 * H);
+    expect(parseSessionDuration('15m')).toBe(H / 4);
+  });
+
+  // A typo must never invent an end time.
+  it('rejects anything else', () => {
+    for (const bad of [undefined, '', '8', 'eight hours', '10m', '91d', '8h-1m', '1.5h']) {
+      expect(parseSessionDuration(bad)).toBeNull();
+    }
+  });
+});
+
+describe('formatElapsed', () => {
+  const now = Date.parse('2026-10-19T12:00:00Z');
+  it('says how long ago, in the largest useful units', () => {
+    expect(formatElapsed(new Date(now - 5 * 60_000), now)).toBe('5m');
+    expect(formatElapsed(new Date(now - 190 * 60_000), now)).toBe('3h 10m');
+    expect(formatElapsed(new Date(now - 50 * 3_600_000), now)).toBe('2d 2h');
+    expect(formatElapsed(new Date(now + 60_000), now)).toBe('0m');
   });
 });

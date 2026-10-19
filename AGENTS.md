@@ -9,7 +9,7 @@ Every credential command has a headless mode. **A bare command in a non-TTY cont
 | Task | Command |
 |---|---|
 | Who am I? (read-only, always safe) | `awswiz whoami -p <profile> --json` |
-| Session health (read-only, always safe) | `awswiz status --json` — expiry and state per session, no secrets |
+| Session health (always safe) | `awswiz status --json` — expiry and state per session, no secrets |
 | Start an MFA session | `awswiz mfa -p <profile> -c <6-digit-code>` → writes `<profile>-mfa` |
 | Assume a role | `awswiz assume -p <source> -r <role-arn> --target <name> [-c <code>]` |
 | SSO login | `awswiz login -p <profile>` (needs a human to approve in the browser) |
@@ -24,7 +24,7 @@ Rules for agents:
 - **Never pass secrets as command-line flags.** awswiz deliberately does not accept access keys as flags (they would leak into shell history and process lists). To create key-based profiles non-interactively, write `~/.aws/credentials` directly (INI, `0600` on Unix) or use `aws configure set`.
 - `profile add` / `profile edit` are interactive wizards by design (masked secret input) — do not call them headless.
 - MFA codes are time-based; an agent can only supply `-c` when a human provides the current code.
-- Check a session with `awswiz status --json` / `awswiz whoami --json` before using it — never by reading `~/.aws/sso/cache` or printing credentials. `state: "refreshable"` means the SDK renews the SSO token by itself; `expired`/`missing` means a human has to run the `renew` command.
+- Check a session with `awswiz status --json` / `awswiz whoami --json` before using it — never by reading `~/.aws/sso/cache` or printing credentials. For SSO, `valid` works now (status renews an expired token the way the SDK would), `expired`/`missing` means a human has to run the `renew` command, `unverified` means AWS could not be reached (retry, or just try the command), and `refreshable` only appears with `--offline` (not checked). `sessionEndsAt` is when the session ends — exact if `sessionEndSource` is `token`, estimated from `awswiz_session_duration` if `config`, `null` when unknown.
 - `awswiz exec` stops before running the command when the session is dead (exit 1, renewal command in the error), sends its own line to stderr (pipe the command's stdout safely) and exits with the command's exit code.
 - With `--json`, a failure is JSON on stdout too: `{"error": "…", "hint": "…"}`.
 - `awswiz console --print-url` prints a **sign-in URL that is itself a credential** — never log it.
