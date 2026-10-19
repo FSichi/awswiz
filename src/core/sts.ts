@@ -1,12 +1,7 @@
-import {
-  AssumeRoleCommand,
-  GetSessionTokenCommand,
-  STSClient,
-  type Credentials as AwsCredentials,
-} from '@aws-sdk/client-sts';
-import { fromIni } from '@aws-sdk/credential-providers';
+import type { Credentials as AwsCredentials } from '@aws-sdk/client-sts';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
+import { stsClient, stsCommands } from './sdk.js';
 
 export interface TempCredentials {
   accessKeyId: string;
@@ -52,10 +47,6 @@ function friendly(err: unknown): AwswizError {
   return new AwswizError(`${t('AWS request failed')}: ${(err as Error).message}`, { hint: `(${name})` });
 }
 
-function client(sourceProfile: string, region: string): STSClient {
-  return new STSClient({ region, credentials: fromIni({ profile: sourceProfile }) });
-}
-
 /** STS GetSessionToken — exchanges long-lived keys + an MFA code for temporary credentials. */
 export async function getSessionToken(opts: {
   sourceProfile: string;
@@ -64,8 +55,9 @@ export async function getSessionToken(opts: {
   tokenCode: string;
   durationSeconds?: number;
 }): Promise<TempCredentials> {
+  const { GetSessionTokenCommand } = await stsCommands();
   try {
-    const out = await client(opts.sourceProfile, opts.region).send(
+    const out = await (await stsClient(opts.sourceProfile, opts.region)).send(
       new GetSessionTokenCommand({
         SerialNumber: opts.serialNumber,
         TokenCode: opts.tokenCode,
@@ -88,8 +80,9 @@ export async function assumeRole(opts: {
   tokenCode?: string;
   durationSeconds?: number;
 }): Promise<TempCredentials> {
+  const { AssumeRoleCommand } = await stsCommands();
   try {
-    const out = await client(opts.sourceProfile, opts.region).send(
+    const out = await (await stsClient(opts.sourceProfile, opts.region)).send(
       new AssumeRoleCommand({
         RoleArn: opts.roleArn,
         RoleSessionName: opts.sessionName,

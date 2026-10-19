@@ -11,28 +11,56 @@ export function isVerbose(): boolean {
   return verbose;
 }
 
+// ── JSON mode ────────────────────────────────────────────────────────────────
+// With --json, stdout belongs to the caller's parser: every human-facing line
+// goes silent and warnings move to stderr, where they cannot corrupt the payload.
+
+let jsonMode = false;
+
+export function setJsonMode(value: boolean): void {
+  jsonMode = value;
+}
+
+export function isJsonMode(): boolean {
+  return jsonMode;
+}
+
+/** Print the machine-readable payload — the only thing a --json run writes to stdout. */
+export function emitJson(data: unknown): void {
+  console.log(JSON.stringify(data, null, 2));
+}
+
 // ── Logging ──────────────────────────────────────────────────────────────────
 
 export const log = {
   info(message: string): void {
+    if (jsonMode) return;
     console.log(message);
   },
   success(message: string): void {
+    if (jsonMode) return;
     console.log(pc.green(`  ✔ ${message}`));
   },
   warn(message: string): void {
+    if (jsonMode) {
+      console.error(pc.yellow(`  ⚠ ${message}`));
+      return;
+    }
     console.log(pc.yellow(`  ⚠ ${message}`));
   },
   error(message: string): void {
     console.error(pc.red(`  ✖ ${message}`));
   },
   dim(message: string): void {
+    if (jsonMode) return;
     console.log(pc.dim(message));
   },
   step(message: string): void {
+    if (jsonMode) return;
     console.log(pc.cyan(message));
   },
   blank(): void {
+    if (jsonMode) return;
     console.log();
   },
 };
@@ -40,15 +68,18 @@ export const log = {
 // ── Styled elements ──────────────────────────────────────────────────────────
 
 export function heading(text: string): void {
+  if (jsonMode) return;
   console.log(pc.bold(pc.cyan(text)));
 }
 
 export function divider(): void {
+  if (jsonMode) return;
   console.log(pc.dim('─'.repeat(50)));
 }
 
 /** Print a styled section header. */
 export function section(title: string): void {
+  if (jsonMode) return;
   console.log(`\n${pc.bold(pc.white(`  ${title}`))}`);
 }
 
@@ -66,8 +97,13 @@ export function outro(message = ''): void {
 
 const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
-/** Run an async function while showing a spinner; clears the line when done. */
+/**
+ * Run an async function while showing a spinner; clears the line when done.
+ * Without a terminal it just runs: frames and line-clearing codes would only
+ * pollute a log or a piped output.
+ */
 export async function spin<T>(message: string, fn: () => Promise<T>): Promise<T> {
+  if (!process.stdout.isTTY || jsonMode) return fn();
   let i = 0;
   let result: T;
   let error: unknown;
@@ -96,5 +132,6 @@ export async function spin<T>(message: string, fn: () => Promise<T>): Promise<T>
  * ANSI-aware widths. Optional `title` renders a label in the top border.
  */
 export function box(lines: string[], title?: string): void {
+  if (jsonMode) return;
   clackNote(lines.join('\n'), title);
 }

@@ -9,7 +9,10 @@ function detectLocale(): Locale {
     return env.trim().toLowerCase().startsWith('es') ? 'es' : 'en';
   }
   try {
-    const system = Intl.DateTimeFormat().resolvedOptions().locale;
+    // Every Intl service resolves the same default locale; PluralRules does it in
+    // well under a millisecond, where DateTimeFormat loads time-zone data (~10 ms
+    // on every start).
+    const system = new Intl.PluralRules().resolvedOptions().locale;
     if (system?.toLowerCase().startsWith('es')) return 'es';
   } catch {
     // fall through to English

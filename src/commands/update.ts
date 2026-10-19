@@ -1,49 +1,73 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { compareVersions, suppressUpdateNotice } from '../core/update-checker.js';
+import { PACKAGE } from '../package-info.js';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
-import { log } from '../ui/output.js';
+import { log, spin } from '../ui/output.js';
 import { assertInteractive } from '../ui/prompts.js';
 
 type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
 
-function detectPackageManager(): PackageManager {
-  for (const pm of ['npm', 'yarn', 'pnpm', 'bun'] as const) {
-    const result = spawnSync(pm, ['--version'], { stdio: 'ignore' });
-    if (result.status === 0) return pm;
-  }
+/**
+ * Which package manager installed this copy of awswiz, judged by where it lives.
+ * Probing PATH instead (the old way) cost four process launches and could pick
+ * npm for a pnpm install, leaving two copies fighting over the `awswiz` command.
+ * Exported for unit tests.
+ */
+export function detectPackageManager(installPath: string): PackageManager {
+  const path = installPath.replace(/\\/g, '/').toLowerCase();
+  if (path.includes('/pnpm/') || path.includes('/.pnpm/')) return 'pnpm';
+  if (path.includes('/.bun/')) return 'bun';
+  if (path.includes('/yarn/')) return 'yarn';
   return 'npm';
 }
 
 function getUpdateCommand(pm: PackageManager): string {
   switch (pm) {
     case 'npm':
-      return 'npm i -g @fsichi/awswiz';
+      return `npm i -g ${PACKAGE.name}`;
     case 'yarn':
-      return 'yarn global add @fsichi/awswiz';
+      return `yarn global add ${PACKAGE.name}`;
     case 'pnpm':
-      return 'pnpm add -g @fsichi/awswiz';
+      return `pnpm add -g ${PACKAGE.name}`;
     case 'bun':
-      return 'bun add -g @fsichi/awswiz';
+      return `bun add -g ${PACKAGE.name}`;
   }
 }
 
-function spin(message: string, fn: () => { ok: boolean; stderr: string }): { ok: boolean; stderr: string } {
-  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-  let i = 0;
-  let result: { ok: boolean; stderr: string } = { ok: false, stderr: '' };
-
-  const timer = setInterval(() => {
-    process.stdout.write(`\r${frames[i++ % frames.length]} ${message}`);
-  }, 80);
-
+/** The version the registry would install, or null when it cannot be asked. */
+async function fetchLatestVersion(): Promise<string | null> {
+  const registry = (process.env.npm_config_registry || 'https://registry.npmjs.org').replace(/\/+$/, '');
   try {
-    result = fn();
-  } finally {
-    clearInterval(timer);
-    process.stdout.write('\r\x1b[K');
+    const res = await fetch(`${registry}/${PACKAGE.name}/latest`, {
+      signal: AbortSignal.timeout(5000),
+      headers: { accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { version?: unknown };
+    return typeof data.version === 'string' ? data.version : null;
+  } catch {
+    return null;
   }
+}
 
-  return result;
+/**
+ * Run the install without blocking, so the spinner actually animates (the old
+ * spawnSync froze its timer). A shell is needed because npm, pnpm and yarn are
+ * .cmd shims on Windows; the command is a fixed string, so quoting cannot go wrong.
+ */
+function runInstall(cmd: string): Promise<{ ok: boolean; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, { shell: true, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    let stderr = '';
+    child.stderr?.setEncoding('utf8');
+    child.stderr?.on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on('error', (err) => resolve({ ok: false, stderr: err.message }));
+    child.on('close', (code) => resolve({ ok: code === 0, stderr: stderr.trim() }));
+  });
 }
 
 export interface UpdateOptions {
@@ -55,21 +79,22 @@ export async function updateCommand(opts: UpdateOptions = {}): Promise<void> {
 
   let pm = opts.packageManager;
   if (!pm) {
-    pm = detectPackageManager();
+    pm = detectPackageManager(fileURLToPath(import.meta.url));
     log.dim(t('Detected package manager: {pm}', { pm }));
   }
 
+  // Reinstalling an up-to-date package takes seconds and changes nothing.
+  const latest = await spin(t('Checking for updates…'), fetchLatestVersion);
+  if (latest && (compareVersions(latest, PACKAGE.version) ?? 1) <= 0) {
+    log.success(t('You already have the latest version ({version}).', { version: PACKAGE.version }));
+    return;
+  }
+
   const cmd = getUpdateCommand(pm);
-
-  log.info(t('Checking for updates…'));
-  log.blank();
-
-  const result = spin(t('Updating @fsichi/awswiz via {pm}…', { pm }), () => {
-    const r = spawnSync(cmd, { shell: true, stdio: 'pipe', encoding: 'utf8' });
-    return { ok: r.status === 0, stderr: r.stderr };
-  });
+  const result = await spin(t('Updating @fsichi/awswiz via {pm}…', { pm }), () => runInstall(cmd));
 
   if (result.ok) {
+    suppressUpdateNotice();
     log.success(t('@fsichi/awswiz updated successfully! 🎉'));
     log.dim(t('Run "awswiz --version" to verify.'));
   } else {

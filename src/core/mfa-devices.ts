@@ -1,5 +1,4 @@
-import { IAMClient, ListMFADevicesCommand } from '@aws-sdk/client-iam';
-import { fromIni } from '@aws-sdk/credential-providers';
+import { iamClient } from './sdk.js';
 
 /**
  * Auto-discover the MFA device serial(s) for the profile's user via IAM
@@ -7,7 +6,10 @@ import { fromIni } from '@aws-sdk/credential-providers';
  * `iam:ListMFADevices` permission; callers fall back to asking when it throws.
  */
 export async function discoverMfaDevices(sourceProfile: string, region: string): Promise<string[]> {
-  const client = new IAMClient({ region, credentials: fromIni({ profile: sourceProfile }) });
+  const [{ ListMFADevicesCommand }, client] = await Promise.all([
+    import('@aws-sdk/client-iam'),
+    iamClient(sourceProfile, region),
+  ]);
   const out = await client.send(new ListMFADevicesCommand({}));
   return (out.MFADevices ?? [])
     .map((d) => d.SerialNumber)
