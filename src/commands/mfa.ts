@@ -1,9 +1,9 @@
 import pc from 'picocolors';
-import { getProfile, listProfiles, resolveRegion } from '../core/aws-files.js';
-import { writeConfigProfile, writeCredentials } from '../core/aws-writer.js';
+import { assertSessionTarget, getProfile, listProfiles, resolveRegion } from '../core/aws-files.js';
+import { replaceCredentials, writeConfigProfile } from '../core/aws-writer.js';
 import { discoverMfaDevices } from '../core/mfa-devices.js';
 import { getSessionToken } from '../core/sts.js';
-import { formatRelative } from '../core/util.js';
+import { formatRelative, parseDuration, parseMfaCode } from '../core/util.js';
 import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
 import { box, log, spin } from '../ui/output.js';
@@ -19,6 +19,9 @@ export interface MfaOptions {
 /** Exchange a profile's keys + an MFA code for a temporary "<profile>-mfa" session. */
 export async function mfaCommand(opts: MfaOptions = {}): Promise<void> {
   const nonInteractive = Boolean(opts.profile && opts.code);
+  // Bad flags fail here, before an MFA code is spent on a request that cannot work.
+  const durationSeconds = parseDuration(opts.duration);
+  const flagCode = opts.code !== undefined ? parseMfaCode(opts.code) : undefined;
 
   // 1. The base profile (must have long-lived keys).
   let profileName: string;
@@ -41,7 +44,19 @@ export async function mfaCommand(opts: MfaOptions = {}): Promise<void> {
   }
 
   const profile = await getProfile(profileName);
-  if (!profile) throw new AwswizError(t('Profile "{profile}" not found.', { profile: profileName }));
+  if (!profile) {
+    throw new AwswizError(t('Profile "{profile}" not found.', { profile: profileName }), {
+      hint: t('See your profiles with: awswiz profile list'),
+    });
+  }
+  if (profile.kind === 'session') {
+    // GetSessionToken needs long-lived keys; a session in turn would make "x-mfa-mfa".
+    throw new AwswizError(t('"{profile}" is already a temporary session.', { profile: profileName }), {
+      hint: t('Start the MFA session from its base profile (the one with long-lived keys).'),
+    });
+  }
+  const target = `${profileName}-mfa`;
+  await assertSessionTarget(target);
 
   const region = await resolveRegion(profileName);
 
@@ -89,8 +104,8 @@ export async function mfaCommand(opts: MfaOptions = {}): Promise<void> {
 
   // 3. The 6-digit code.
   let code: string;
-  if (opts.code) {
-    code = opts.code;
+  if (flagCode) {
+    code = flagCode;
   } else {
     assertInteractive();
     code = await input({
@@ -99,16 +114,14 @@ export async function mfaCommand(opts: MfaOptions = {}): Promise<void> {
     });
   }
 
-  const durationSeconds = opts.duration ? Number(opts.duration) : undefined;
-
   // 4. Ask STS for a session.
   const creds = await spin(t('Requesting a temporary session from AWS…'), () =>
     getSessionToken({ sourceProfile: profileName, region, serialNumber: serial!, tokenCode: code.trim(), durationSeconds }),
   );
 
-  // 5. Store it as "<profile>-mfa" (matching the long-standing convention).
-  const target = `${profileName}-mfa`;
-  writeCredentials(target, {
+  // 5. Store it as "<profile>-mfa" (matching the long-standing convention). The
+  // new session replaces the old one whole — no stale keys mixed in.
+  replaceCredentials(target, {
     aws_access_key_id: creds.accessKeyId,
     aws_secret_access_key: creds.secretAccessKey,
     aws_session_token: creds.sessionToken,
