@@ -1,6 +1,14 @@
 import pc from 'picocolors';
 import { getProfile, listProfiles, type CredentialKind } from '../core/aws-files.js';
-import { removeProfile, writeConfigProfile, writeCredentials } from '../core/aws-writer.js';
+import {
+  removeCredentials,
+  removeProfile,
+  replaceConfigProfile,
+  replaceCredentials,
+  writeConfigProfile,
+  writeCredentials,
+} from '../core/aws-writer.js';
+import { isAwsRegion } from '../core/util.js';
 import { t } from '../ui/i18n.js';
 import { log } from '../ui/output.js';
 import { assertInteractive, confirm, input, password, select } from '../ui/prompts.js';
@@ -12,6 +20,10 @@ const KIND_BADGE: Record<CredentialKind, string> = {
   session: pc.yellow('mfa/session'),
   unknown: pc.dim('—'),
 };
+
+function validateRegion(value: string): true | string {
+  return isAwsRegion(value) ? true : t('Looks off — regions are like us-east-1, eu-west-2.');
+}
 
 function validateName(value: string): true | string {
   const n = value.trim();
@@ -75,29 +87,33 @@ export async function profileAddCommand(): Promise<void> {
       message: t('AWS secret access key:'),
       validate: (v) => (v.trim().length >= 20 ? true : t('That does not look like a secret access key.')),
     });
-    const region = await input({ message: t('Default region:'), default: 'us-east-1' });
-    writeCredentials(name, { aws_access_key_id: accessKeyId.trim(), aws_secret_access_key: secret.trim() });
-    writeConfigProfile(name, { region: region.trim() });
+    const region = await input({ message: t('Default region:'), default: 'us-east-1', validate: validateRegion });
+    // A profile being overwritten gets exactly the new settings: a leftover
+    // session token or sso_* key would keep it resolving to the old identity.
+    replaceCredentials(name, { aws_access_key_id: accessKeyId.trim(), aws_secret_access_key: secret.trim() });
+    replaceConfigProfile(name, { region: region.trim() });
   } else {
     const startUrl = await input({
       message: t('SSO start URL:'),
       placeholder: 'https://my-org.awsapps.com/start',
       validate: (v) => (v.trim().startsWith('http') ? true : t('Enter the full https start URL.')),
     });
-    const ssoRegion = await input({ message: t('SSO region:'), default: 'us-east-1' });
+    const ssoRegion = await input({ message: t('SSO region:'), default: 'us-east-1', validate: validateRegion });
     const accountId = await input({
       message: t('AWS account ID:'),
       validate: (v) => (/^\d{12}$/.test(v.trim()) ? true : t('Account IDs are 12 digits.')),
     });
     const roleName = await input({ message: t('SSO role name (permission set):') });
-    const region = await input({ message: t('Default region:'), default: ssoRegion });
-    writeConfigProfile(name, {
+    const region = await input({ message: t('Default region:'), default: ssoRegion, validate: validateRegion });
+    replaceConfigProfile(name, {
       sso_start_url: startUrl.trim(),
       sso_region: ssoRegion.trim(),
       sso_account_id: accountId.trim(),
       sso_role_name: roleName.trim(),
       region: region.trim(),
     });
+    // Static keys left in ~/.aws/credentials would win over the SSO settings.
+    removeCredentials(name);
   }
 
   log.blank();
@@ -128,7 +144,7 @@ export async function profileEditCommand(): Promise<void> {
   });
 
   if (field === 'region') {
-    const region = await input({ message: t('New region:'), default: current?.region ?? 'us-east-1' });
+    const region = await input({ message: t('New region:'), default: current?.region ?? 'us-east-1', validate: validateRegion });
     writeConfigProfile(name, { region: region.trim() });
   } else if (field === 'keys') {
     const accessKeyId = await input({ message: t('New access key ID:') });

@@ -95,6 +95,23 @@ export function upsertSection(doc: IniDoc, name: string, kv: Record<string, stri
   }
 }
 
+/**
+ * Make a section hold exactly these keys. Unlike upsertSection, keys the new
+ * set lacks are dropped — switching a profile to another identity must not
+ * leave, say, an old aws_session_token beside new keys. Comment lines stay.
+ */
+export function replaceSection(doc: IniDoc, name: string, kv: Record<string, string>): void {
+  const section = findSection(doc, name);
+  const comments = section ? section.lines.filter((line) => /^\s*[#;]/.test(line)) : [];
+  const lines = [...comments, ...Object.entries(kv).map(([key, value]) => `${key} = ${value}`)];
+  if (section) section.lines = lines;
+  else doc.sections.push({ name, lines });
+}
+
+export function hasSection(doc: IniDoc, name: string): boolean {
+  return findSection(doc, name) !== undefined;
+}
+
 export function removeSection(doc: IniDoc, name: string): boolean {
   const idx = doc.sections.findIndex((s) => s.name === name);
   if (idx === -1) return false;

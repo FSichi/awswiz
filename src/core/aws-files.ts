@@ -1,6 +1,8 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { loadSharedConfigFiles } from '@smithy/shared-ini-file-loader';
+import { AwswizError } from '../ui/errors.js';
+import { t } from '../ui/i18n.js';
 
 /** Resolved paths to the two AWS shared files (respecting the standard env vars). */
 export function awsFilePaths(): { configFile: string; credentialsFile: string } {
@@ -9,6 +11,23 @@ export function awsFilePaths(): { configFile: string; credentialsFile: string } 
     configFile: process.env.AWS_CONFIG_FILE ?? join(home, '.aws', 'config'),
     credentialsFile: process.env.AWS_SHARED_CREDENTIALS_FILE ?? join(home, '.aws', 'credentials'),
   };
+}
+
+// The SDK keeps every ~/.aws file it has read in a process-wide cache, which it
+// shares with the credential providers (fromIni). After awswiz writes a file,
+// the next read must bypass it once — that refreshes the cache for the SDK too,
+// so a session renewed mid-command is the one the following call uses.
+let filesChanged = false;
+
+/** Called by the writer after it changes ~/.aws/config or ~/.aws/credentials. */
+export function markAwsFilesChanged(): void {
+  filesChanged = true;
+}
+
+function loadFiles() {
+  const ignoreCache = filesChanged;
+  filesChanged = false;
+  return loadSharedConfigFiles({ ignoreCache });
 }
 
 export type CredentialKind = 'keys' | 'sso' | 'role' | 'session' | 'unknown';
@@ -39,7 +58,7 @@ function classify(merged: Record<string, string | undefined>, hasCredentials: bo
  * other edge cases are handled the same way the real tooling handles them.
  */
 export async function listProfiles(): Promise<ProfileInfo[]> {
-  const { configFile, credentialsFile } = await loadSharedConfigFiles();
+  const { configFile, credentialsFile } = await loadFiles();
   const names = new Set([...Object.keys(configFile), ...Object.keys(credentialsFile)]);
 
   const profiles: ProfileInfo[] = [];
@@ -76,9 +95,28 @@ export async function getProfile(name: string): Promise<ProfileInfo | undefined>
   return (await listProfiles()).find((p) => p.name === name);
 }
 
+/**
+ * Temporary credentials may only land on a session profile or a new name.
+ * Written over a profile with long-lived keys, SSO or a role, they would replace
+ * its real credentials — `assume` without --target names the profile after the
+ * role, so a role called "dev" used to overwrite an existing "dev" silently.
+ */
+export async function assertSessionTarget(name: string): Promise<void> {
+  const existing = await getProfile(name);
+  if (existing && existing.kind !== 'session' && existing.kind !== 'unknown') {
+    throw new AwswizError(
+      t('"{profile}" is an existing {kind} profile — temporary credentials would replace it.', {
+        profile: name,
+        kind: existing.kind,
+      }),
+      { hint: t('Choose another profile name with --target.') },
+    );
+  }
+}
+
 /** The raw config-file keys for a profile (sso_start_url, mfa_serial, region…). */
 export async function getConfigKeys(profile: string): Promise<Record<string, string>> {
-  const { configFile } = await loadSharedConfigFiles();
+  const { configFile } = await loadFiles();
   const section = configFile[profile];
   if (!section) return {};
   const out: Record<string, string> = {};
@@ -88,7 +126,7 @@ export async function getConfigKeys(profile: string): Promise<Record<string, str
 
 /** The raw ~/.aws/credentials keys for a profile (includes aws_session_expiration when awswiz wrote it). */
 export async function getCredentialKeys(profile: string): Promise<Record<string, string>> {
-  const { credentialsFile } = await loadSharedConfigFiles();
+  const { credentialsFile } = await loadFiles();
   const section = credentialsFile[profile];
   if (!section) return {};
   const out: Record<string, string> = {};
@@ -115,7 +153,7 @@ export async function getSsoSessionKeys(name: string): Promise<Record<string, st
 
 /** Names of profiles that can SSO-login (they have sso_session or sso_start_url). */
 export async function listSsoProfiles(): Promise<string[]> {
-  const { configFile } = await loadSharedConfigFiles();
+  const { configFile } = await loadFiles();
   return Object.keys(configFile)
     .filter((name) => !name.startsWith('sso-session.'))
     .filter((name) => configFile[name]?.sso_session || configFile[name]?.sso_start_url);
@@ -123,7 +161,7 @@ export async function listSsoProfiles(): Promise<string[]> {
 
 /** Resolve the effective region for a profile: profile → env → fallback. */
 export async function resolveRegion(profile: string, fallback = 'us-east-1'): Promise<string> {
-  const { configFile, credentialsFile } = await loadSharedConfigFiles();
+  const { configFile, credentialsFile } = await loadFiles();
   return (
     configFile[profile]?.region ??
     credentialsFile[profile]?.region ??

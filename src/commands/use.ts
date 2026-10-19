@@ -1,6 +1,7 @@
 import pc from 'picocolors';
 import { listProfiles } from '../core/aws-files.js';
 import { copyProfileToDefault } from '../core/aws-writer.js';
+import { AwswizError } from '../ui/errors.js';
 import { t } from '../ui/i18n.js';
 import { box, log } from '../ui/output.js';
 import { assertInteractive, select } from '../ui/prompts.js';
@@ -38,9 +39,19 @@ export async function useCommand(opts: UseOptions = {}): Promise<void> {
     });
   }
 
+  // A typo must not reach [default] (it would be emptied) or a printed export line.
+  if (!(await listProfiles()).some((p) => p.name === name)) {
+    throw new AwswizError(t('Profile "{profile}" not found.', { profile: name }), {
+      hint: t('See your profiles with: awswiz profile list'),
+    });
+  }
+
   if (opts.default) {
-    copyProfileToDefault(name);
+    const { backedUpAs } = copyProfileToDefault(name);
     log.blank();
+    if (backedUpAs) {
+      log.dim(`  ${t('The keys that were only in default are saved as profile "{backup}".', { backup: backedUpAs })}`);
+    }
     log.success(t('Copied "{profile}" into the default profile — "aws" uses it everywhere now.', { profile: name }));
     return;
   }

@@ -1,4 +1,38 @@
 import { spawn } from 'node:child_process';
+import { AwswizError } from '../ui/errors.js';
+import { t } from '../ui/i18n.js';
+
+/**
+ * --duration as STS takes it: whole seconds, 900 (15 min) to 129600 (36 h).
+ * "1h" or "abc" used to reach AWS as NaN and come back as a vague ValidationError.
+ */
+export function parseDuration(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const seconds = Number(value.trim());
+  if (!Number.isInteger(seconds) || seconds < 900 || seconds > 129_600) {
+    throw new AwswizError(t('--duration must be whole seconds between 900 and 129600 (got "{value}").', { value }), {
+      hint: t('e.g. --duration 3600 for one hour.'),
+    });
+  }
+  return seconds;
+}
+
+/**
+ * A region name: us-east-1, eu-central-2, also us-gov-west-1 or
+ * us-isob-east-1. The old pattern allowed one middle part and rejected GovCloud.
+ */
+export function isAwsRegion(value: string): boolean {
+  return /^[a-z]{2}(-[a-z]+)+-\d{1,2}$/.test(value.trim());
+}
+
+/** An MFA code from a flag: exactly 6 digits, checked before AWS is asked. */
+export function parseMfaCode(value: string): string {
+  const code = value.trim();
+  if (!/^\d{6}$/.test(code)) {
+    throw new AwswizError(t('The MFA code must be the 6 digits your app shows (got "{value}").', { value }));
+  }
+  return code;
+}
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
