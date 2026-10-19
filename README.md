@@ -55,11 +55,15 @@ SSO sessions:
 Active profile: default (AWS_PROFILE not set)
 ```
 
-Sessions created by awswiz record their expiration (`aws_session_expiration`) so status can tell you *before* AWS fails with a cryptic `ExpiredToken`.
+Sessions created by awswiz record their expiration (`aws_session_expiration`) so status can tell you *before* AWS fails with a cryptic `ExpiredToken`. An SSO token that expired but still has a refresh token shows as signed in: the SDK renews it on its own, just like the `aws` CLI.
+
+`awswiz status --json` returns the same as data — each session's `expiresAt` and `state`, each SSO session's state, and the renewal command — **never a key or a token**, so scripts and agents can check a session without reading AWS's caches themselves. `awswiz whoami --json` does the same for the identity.
 
 ### `awswiz exec`
 
-Run one command with a profile's credentials — no shell exports, no `[default]` rewriting: `awswiz exec -p horsego-mfa -- aws s3 ls`. Everything after `--` is passed through untouched. If the session has already expired, it offers to **renew it with MFA right there** instead of letting the command fail.
+Run one command with a profile's credentials — no shell exports, no `[default]` rewriting: `awswiz exec -p horsego-mfa -- aws s3 ls`. Everything after `--` is passed through untouched — including on Windows, where `.cmd` tools (`npx`, `cdk`, `serverless`…) get every argument quoted for `cmd.exe`, so `"my file.txt"` stays one argument and a `&` stays text. awswiz's own line goes to stderr, so `awswiz exec -p prod -- aws s3api list-buckets | jq` pipes only the command's output, and the exit code is the command's.
+
+If the session has already expired, it offers to **renew it right there** — MFA for `<base>-mfa` sessions, a sign-in for SSO profiles. Without a terminal (scripts, agents) it stops *before* running the command, with the renewal command in the error, instead of letting it fail halfway.
 
 ### `awswiz clean`
 
@@ -80,7 +84,7 @@ awswiz mfa -p myprofile -c 123456       # non-interactive (scripts/CI)
 
 ### `awswiz assume`
 
-Assume a role in another account using a source profile's credentials. Prompts for MFA when the source needs it, then writes the temporary credentials to a profile you name.
+Assume a role in another account using a source profile's credentials (keys, an MFA session, SSO, or a role profile — whose own role is assumed with its `source_profile`). Prompts for MFA when the source needs it, then writes the temporary credentials to a profile you name. It refuses to write them over a profile that has its own credentials (long-lived keys, SSO, a role), so a role called `dev` can never overwrite your `dev` profile — and it checks that before using your MFA code.
 
 ### `awswiz login` (SSO)
 
@@ -101,7 +105,7 @@ awswiz login -p prod --force # sign in again even if the session is valid
 
 ### `awswiz use`
 
-A tool can't change your parent shell's environment, so `use` prints the exact line for your shell (`export AWS_PROFILE=…`, PowerShell `$env:…`, fish `set -x …`). Prefer no env var? `awswiz use <profile> --default` copies the profile into `[default]` so plain `aws`/SDK calls use it everywhere.
+A tool can't change your parent shell's environment, so `use` prints the exact line for your shell (`export AWS_PROFILE=…`, PowerShell `$env:…`, fish `set -x …`). Prefer no env var? `awswiz use <profile> --default` makes `[default]` exactly that profile, so plain `aws`/SDK calls use it everywhere — replacing what was there, so no old session token or static key keeps winning over the new identity. If `[default]` held access keys that exist in no other profile, they are saved first as `default-backup`.
 
 ### `awswiz doctor`
 
@@ -114,11 +118,11 @@ Verifies your `~/.aws` files exist, counts your profiles, and — crucially — 
 | **Profiles** | awswiz reads/writes `~/.aws/config` and `~/.aws/credentials` directly, with a comment-preserving INI editor — your formatting and comments survive. |
 | **MFA / assume-role** | `@aws-sdk/client-sts` (`GetSessionToken`, `AssumeRole`). |
 | **MFA device discovery** | `@aws-sdk/client-iam` (`ListMFADevices`). |
-| **SSO** | `@aws-sdk/client-sso-oidc` device flow, token cached with the same keys the CLI uses. |
+| **SSO** | `@aws-sdk/client-sso-oidc` — authorization code + PKCE in the browser (device code as fallback), token cached with the same keys the CLI uses. |
 | **Web console sign-in** | AWS sign-in federation endpoint — `GetFederationToken` for long-lived keys, direct temporary credentials for SSO/role profiles. |
 | **Session expiry** | `mfa`/`assume` record `aws_session_expiration` in the credentials file; `status` and `exec` read it. |
 
-No `aws` CLI is spawned or required. Credentials files are written with `0600` permissions on Unix, and secrets are never logged.
+No `aws` CLI is spawned or required. `~/.aws` files are written atomically (a crash never leaves a half-written credentials file, and a symlinked file stays a symlink); the credentials file and the SSO token cache are private (`0600`, folder `0700`) on Unix, and secrets are never logged. The AWS SDK is loaded only by the commands that call AWS, so `status`, `use` or `region` start in about a tenth of a second, and the package installs with no dependencies.
 
 ## Non-interactive mode & AI agents
 
@@ -130,8 +134,11 @@ awswiz assume --profile prod --role arn:aws:iam::123456789012:role/Admin --code 
 awswiz exec -p prod -- aws s3 ls
 awswiz region prod eu-west-1
 awswiz use prod --default
-awswiz status        # read-only, always safe
+awswiz status --json         # read-only, always safe; no secrets
+awswiz whoami -p prod --json
 ```
+
+With `--json`, stdout carries only the payload — a failure too, as `{"error": "…", "hint": "…"}` — and without a terminal the output is plain text, no color codes.
 
 The repo ships an [`AGENTS.md`](AGENTS.md) with the full non-interactive matrix and the security rules agents should follow (never pass secrets as flags, never log sign-in URLs). awswiz deliberately does **not** accept access keys as CLI flags — they would leak into shell history.
 
