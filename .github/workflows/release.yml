@@ -13,11 +13,15 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
         with:
-          node-version: 22
-          cache: npm
+          persist-credentials: false
+      # No dependency cache here: a cache written by another workflow must never
+      # feed the job that publishes (setup-node's cache-poisoning guidance).
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
       - run: npm install -g npm@latest # Trusted Publishing needs npm >= 11.5.1
       - run: npm ci
       - run: npm run typecheck
